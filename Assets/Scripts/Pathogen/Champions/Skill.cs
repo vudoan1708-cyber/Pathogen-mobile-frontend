@@ -1,0 +1,243 @@
+using UnityEngine;
+using System;
+
+namespace Pathogen
+{
+    public enum SkillType
+    {
+        Projectile,
+        Dash,
+        AreaOfEffect,
+        SelfBuff,
+        Target
+    }
+
+    public enum ProjectilePiercing
+    {
+        StopOnFirst,
+        PierceMinions,
+        PierceAll
+    }
+
+    public enum StatusType
+    {
+        Slow,
+        Stun,
+        Silence,
+        Bleed,
+        Burn,
+        HealOverTime,
+        ArmorShred
+    }
+
+    public enum MutationTier
+    {
+        Locked,
+        Base,
+        Potency,
+        Alpha,
+        Omega,
+        Apex
+    }
+
+    // ─── VISUALS (universal — works for any skill type) ─────────────
+
+    [Serializable]
+    public class SkillVisuals
+    {
+        public Color primaryColor = new Color(0.8f, 0.4f, 1f);
+        public Color secondaryColor = Color.white;
+        public float scale = 0.4f;
+
+        // Trail (projectile, dash)
+        public bool hasTrail;
+        public Color trailColor = new Color(1f, 1f, 1f, 0.5f);
+        public float trailWidth = 0.1f;
+
+        // Hit/cast particles
+        public Color particleColor = new Color(1f, 0.8f, 0.2f);
+        public int particleCount = 4;
+        public float particleSize = 0.12f;
+        public float particleForce = 3f;
+        public float particleLifetime = 0.6f;
+
+        // Aim indicator
+        public Color aimColor = new Color(1f, 1f, 0.3f, 0.7f);
+        public float aimWidth = 0.15f;
+    }
+
+    // ─── STATUS EFFECTS (modular — any skill can apply any combo) ───
+
+    [Serializable]
+    public class SkillStatusEffect
+    {
+        public StatusType type;
+        public float value;    // Slow: 0.5 = 50% slow. Bleed: DPS. Stun: unused (binary).
+        public float duration;
+    }
+
+    // ─── SKILL DEFINITION ───────────────────────────────────────────
+
+    [Serializable]
+    public class SkillDefinition
+    {
+        public string skillName = "Skill";
+        public string description = "";
+        public SkillType type = SkillType.Projectile;
+        public float baseDamage = 60f;
+        public float cooldown = 8f;
+        public float manaCost = 40f;
+        public float range = 10f;
+        public bool isMagicDamage = true;
+
+        // Projectile behavior
+        public float projectileSpeed = 15f;
+        public ProjectilePiercing piercing = ProjectilePiercing.StopOnFirst;
+
+        // Dash behavior
+        public float dashDistance = 6f;
+        public float dashSpeed = 20f;
+
+        // AOE behavior
+        public float aoeRadius = 5f;
+
+        // Buff behavior
+        public float buffAttackDamage = 15f;
+        public float buffMoveSpeed = 3f;
+        public float buffDuration = 6f;
+
+        // Visuals — how this skill looks (universal across all types)
+        public SkillVisuals visuals = new SkillVisuals();
+
+        // Status effects — what this skill applies on hit (any combination)
+        public SkillStatusEffect[] statusEffects = Array.Empty<SkillStatusEffect>();
+    }
+
+    // ─── SKILL RUNTIME ──────────────────────────────────────────────
+
+    public class Skill
+    {
+        public SkillDefinition definition;
+        public MutationTier tier = MutationTier.Locked;
+        public float currentCooldown;
+
+        public bool IsReady => tier != MutationTier.Locked && currentCooldown <= 0f;
+        public bool IsUnlocked => tier != MutationTier.Locked;
+
+        public static readonly int[] TierCosts = { 0, 0, 300, 500, 500, 900 };
+
+        // Mutation bonuses
+        public float bonusDamagePercent;
+        public float bonusOmnivamp;
+        public float bonusCritDamage;
+        public bool hasBleed;
+        public float bonusDamageReflect;
+        public float bonusMagicResist;
+        public bool hasHealOnCast;
+        public float bonusAllScaling;
+
+        public Skill(SkillDefinition def)
+        {
+            definition = def;
+        }
+
+        public void UpdateCooldown(float deltaTime)
+        {
+            if (currentCooldown > 0f)
+                currentCooldown -= deltaTime;
+        }
+
+        public float GetDamage()
+        {
+            return definition.baseDamage * (1f + bonusDamagePercent + bonusAllScaling);
+        }
+
+        public float GetCooldown(float cdrPercent)
+        {
+            return definition.cooldown * (1f - Mathf.Clamp01(cdrPercent));
+        }
+
+        public void StartCooldown(float cdrPercent)
+        {
+            currentCooldown = GetCooldown(cdrPercent);
+        }
+
+        public int GetNextUpgradeCost()
+        {
+            int idx = GetNextTierIndex();
+            if (idx < 0 || idx >= TierCosts.Length) return -1;
+            return TierCosts[idx];
+        }
+
+        public bool NextUpgradeIsBranch() => tier == MutationTier.Potency;
+
+        public bool Upgrade(Champion champion, bool alphaPath = true)
+        {
+            int cost = GetNextUpgradeCost();
+            if (cost < 0 || champion.bioCurrency < cost) return false;
+
+            champion.SpendBioCurrency(cost);
+
+            switch (tier)
+            {
+                case MutationTier.Locked:
+                    tier = MutationTier.Base;
+                    champion.moveSpeed += 0.3f;
+                    break;
+
+                case MutationTier.Base:
+                    tier = MutationTier.Potency;
+                    bonusDamagePercent += 0.25f;
+                    champion.omnivamp += 0.05f;
+                    bonusOmnivamp += 0.05f;
+                    champion.moveSpeed += 0.5f;
+                    break;
+
+                case MutationTier.Potency:
+                    if (alphaPath)
+                    {
+                        tier = MutationTier.Alpha;
+                        bonusCritDamage += 0.15f;
+                        champion.critChance += 0.10f;
+                        hasBleed = true;
+                        champion.moveSpeed += 0.4f;
+                    }
+                    else
+                    {
+                        tier = MutationTier.Omega;
+                        bonusDamageReflect += 0.10f;
+                        champion.damageReflection += 0.10f;
+                        bonusMagicResist += 20f;
+                        champion.magicResist += 20f;
+                        hasHealOnCast = true;
+                        champion.moveSpeed += 0.4f;
+                    }
+                    break;
+
+                case MutationTier.Alpha:
+                case MutationTier.Omega:
+                    tier = MutationTier.Apex;
+                    bonusAllScaling += 0.40f;
+                    champion.attackDamage += 15f;
+                    champion.abilityPower += 15f;
+                    champion.moveSpeed += 0.6f;
+                    break;
+            }
+
+            return true;
+        }
+
+        private int GetNextTierIndex()
+        {
+            switch (tier)
+            {
+                case MutationTier.Locked: return 1;
+                case MutationTier.Base: return 2;
+                case MutationTier.Potency: return 3;
+                case MutationTier.Alpha: return 5;
+                case MutationTier.Omega: return 5;
+                default: return -1;
+            }
+        }
+    }
+}
