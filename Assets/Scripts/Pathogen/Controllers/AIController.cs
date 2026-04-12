@@ -170,8 +170,48 @@ namespace Pathogen
 
             Vector3 dir = (target - transform.position).normalized;
             dir.y = 0f;
+            dir = ChampionSteerAroundObstacles(dir);
             transform.position += dir * champion.moveSpeed * Time.deltaTime;
             FaceTarget(target);
+        }
+
+        private Vector3 ChampionSteerAroundObstacles(Vector3 desiredDir)
+        {
+            if (GameManager.Instance == null) return desiredDir;
+
+            Vector3 steer = Vector3.zero;
+            var nearby = GameManager.Instance.GetEntitiesInRange(transform.position, 3f);
+
+            foreach (var e in nearby)
+            {
+                if (e == champion) continue;
+
+                bool isStructure = e.entityType == EntityType.Structure;
+                bool isChampion = e.entityType == EntityType.Champion;
+                if (!isStructure && !isChampion) continue;
+
+                Vector3 toOther = e.transform.position - transform.position;
+                toOther.y = 0f;
+                float dist = toOther.magnitude;
+                if (dist < 0.01f) continue;
+
+                float ahead = Vector3.Dot(desiredDir, toOther.normalized);
+                if (ahead < 0.3f) continue;
+
+                float range = isStructure ? 3f : 2.5f;
+                float strength = (1f - dist / range) * (isStructure ? 2f : 1.5f);
+                if (strength <= 0f) continue;
+
+                float cross = desiredDir.x * toOther.z - desiredDir.z * toOther.x;
+                Vector3 perpendicular = cross >= 0f
+                    ? new Vector3(-desiredDir.z, 0f, desiredDir.x)
+                    : new Vector3(desiredDir.z, 0f, -desiredDir.x);
+
+                steer += perpendicular * strength;
+            }
+
+            if (steer.sqrMagnitude < 0.001f) return desiredDir;
+            return (desiredDir + steer).normalized;
         }
 
         private void FaceTarget(Vector3 target)

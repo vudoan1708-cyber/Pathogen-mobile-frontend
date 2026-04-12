@@ -23,7 +23,6 @@ namespace Pathogen
         public GameObject shopPanel;
         public Text gameOverText;
         public GameObject gameOverPanel;
-        public Button cameraModeButton;
         public Text respawnCountdownText;
         public GameObject respawnPanel;
 
@@ -59,10 +58,6 @@ namespace Pathogen
             if (shopButton != null)
                 shopButton.onClick.AddListener(ToggleShop);
 
-            // Camera mode button
-            if (cameraModeButton != null)
-                cameraModeButton.onClick.AddListener(CycleCameraMode);
-
             if (shopPanel != null)
                 shopPanel.SetActive(false);
             if (gameOverPanel != null)
@@ -83,8 +78,6 @@ namespace Pathogen
             {
                 if (kb.bKey.wasPressedThisFrame)
                     ToggleShop();
-                if (kb.cKey.wasPressedThisFrame)
-                    CycleCameraMode();
             }
 #endif
         }
@@ -161,12 +154,6 @@ namespace Pathogen
         {
             if (shopPanel != null)
                 shopPanel.SetActive(!shopPanel.activeSelf);
-        }
-
-        private void CycleCameraMode()
-        {
-            if (cameraController != null)
-                cameraController.CycleMode();
         }
 
         private void ShowGameOver(Team winner)

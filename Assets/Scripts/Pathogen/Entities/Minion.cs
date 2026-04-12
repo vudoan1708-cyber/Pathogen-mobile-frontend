@@ -10,9 +10,14 @@ namespace Pathogen
     /// - Re-aggros on a champion if that champion hits an allied champion nearby
     /// - Stays on-lane (Z clamped to prevent diagonal drift)
     /// </summary>
+    public enum MinionType { Melee, Ranged, ArmoredMelee, Buffed }
+
     public class Minion : Entity
     {
         [Header("Minion Settings")]
+        public MinionType minionType;
+        public int formationIndex;
+        public Minion waveAhead;
         public Vector3[] waypoints;
         public int currentWaypointIndex;
         public float waypointReachDistance = 1.5f;
@@ -180,9 +185,58 @@ namespace Pathogen
             else
             {
                 ApplySeparation();
-                PerformAutoAttack(aggroTarget);
+
+                if (minionType == MinionType.Ranged)
+                    FireRangedAttack(aggroTarget);
+                else
+                    PerformAutoAttack(aggroTarget);
+
                 FaceDirection(aggroTarget.transform.position - transform.position);
             }
+        }
+
+        // PROTOTYPE: replace with 3D animated attacks per minion type
+        private void FireRangedAttack(Entity target)
+        {
+            if (target == null || target.IsDead || !CanAttack()) return;
+            attackCooldown = 1f / attackSpeed;
+
+            Vector3 direction = (target.transform.position - transform.position).normalized;
+            direction.y = 0f;
+
+            Color color = team == Team.Virus
+                ? new Color(1f, 0.4f, 0.3f) : new Color(0.4f, 0.7f, 1f);
+
+            var vis = new SkillVisuals
+            {
+                primaryColor = color, scale = 0.15f,
+                hasTrail = true,
+                trailColor = new Color(color.r, color.g, color.b, 0.4f),
+                trailWidth = 0.04f,
+                particleCount = 2, particleSize = 0.06f,
+                particleForce = 1.5f, particleLifetime = 0.3f
+            };
+
+            var projGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            projGO.name = "MinionProjectile";
+            projGO.transform.position = transform.position + direction * 0.5f + Vector3.up * 0.3f;
+            projGO.transform.localScale = Vector3.one * vis.scale;
+            projGO.GetComponent<Renderer>().material.color = vis.primaryColor;
+
+            var proj = projGO.AddComponent<Projectile>();
+            proj.Initialize(this, direction, attackDamage, 12f, attackRange,
+                false, ProjectilePiercing.StopOnFirst, vis);
+
+            DestroyImmediate(projGO.GetComponent<SphereCollider>());
+            var col = projGO.AddComponent<SphereCollider>();
+            col.isTrigger = true;
+            col.radius = 0.5f;
+
+            var rb = projGO.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.isKinematic = false;
+            rb.linearDamping = 0f;
+            rb.angularDamping = 0f;
         }
 
         private void ApplySeparation()
@@ -207,18 +261,22 @@ namespace Pathogen
 
             if (push.sqrMagnitude > 0.01f)
             {
-                // Mostly push along X (lane axis), minimal Z to stay on-lane
                 push.z *= 0.3f;
-                transform.position += push.normalized * separationForce * Time.deltaTime;
+                MoveBy(push.normalized * separationForce * Time.deltaTime);
             }
         }
 
         private void AssignCombatOffset()
         {
-            // Offset along X (lane axis), minimal Z to prevent diagonal drift
-            float xOffset = Random.Range(-2f, 2f);
-            float zOffset = Random.Range(-0.5f, 0.5f);
-            combatOffset = new Vector3(xOffset, 0f, zOffset);
+            bool isFrontRow = minionType == MinionType.Melee || minionType == MinionType.ArmoredMelee;
+            float xOffset = isFrontRow ? Random.Range(-1f, 1f) : -5f + Random.Range(-1f, 1f);
+
+            float spread = 4.5f;
+            int count = 3;
+            int idx = formationIndex < count ? formationIndex : formationIndex - count;
+            float zBase = -(count - 1) * spread * 0.5f + idx * spread;
+
+            combatOffset = new Vector3(xOffset, 0f, zBase + Random.Range(-0.3f, 0.3f));
         }
 
         private void FollowWaypoints()
@@ -253,8 +311,68 @@ namespace Pathogen
             if (dir.sqrMagnitude < 0.01f) return;
 
             dir.Normalize();
-            transform.position += dir * moveSpeed * Time.deltaTime;
+            dir = SteerAroundObstacles(dir);
+
+            float speed = moveSpeed;
+            if (waveAhead != null && !waveAhead.IsDead)
+            {
+                float gap = Vector3.Distance(transform.position, waveAhead.transform.position);
+                if (gap > 4f)
+                    speed = moveSpeed * Mathf.Lerp(1f, 1.6f, (gap - 4f) / 4f);
+            }
+
+            transform.position += dir * speed * Time.deltaTime;
             FaceDirection(dir);
+        }
+
+        private Vector3 SteerAroundObstacles(Vector3 desiredDir)
+        {
+            if (GameManager.Instance == null) return desiredDir;
+
+            Vector3 steer = Vector3.zero;
+            var nearby = GameManager.Instance.GetEntitiesInRange(transform.position, 3f);
+
+            foreach (var e in nearby)
+            {
+                if (e == this || e.entityType == EntityType.Objective) continue;
+                if (e.entityType == EntityType.Minion && e.team != team) continue;
+
+                // Only steer around allied minions that are in combat (stationary)
+                if (e.entityType == EntityType.Minion)
+                {
+                    var other = e as Minion;
+                    if (other != null && other.aggroTarget == null) continue;
+                }
+
+                Vector3 toOther = e.transform.position - transform.position;
+                toOther.y = 0f;
+                float dist = toOther.magnitude;
+                if (dist < 0.01f) continue;
+
+                float ahead = Vector3.Dot(desiredDir, toOther.normalized);
+                if (ahead < 0.3f) continue;
+
+                float strength = 0f;
+                switch (e.entityType)
+                {
+                    case EntityType.Minion: strength = (1f - dist / 2f) * 0.8f; break;
+                    case EntityType.Champion: strength = (1f - dist / 2.5f) * 1.5f; break;
+                    case EntityType.Structure: strength = (1f - dist / 3f) * 2f; break;
+                }
+                if (strength <= 0f) continue;
+
+                // Always nudge in Z (sideways), never backward along the lane
+                float side = toOther.z > transform.position.z ? -1f : 1f;
+                steer.z += side * strength;
+            }
+
+            // Pull back toward lane center (Z=0) when no obstacle is pushing
+            float zDrift = Mathf.Abs(transform.position.z);
+            if (zDrift > 0.5f && steer.sqrMagnitude < 0.01f)
+                steer.z += -Mathf.Sign(transform.position.z) * zDrift * 0.5f;
+
+            if (steer.sqrMagnitude < 0.001f) return desiredDir;
+            return (desiredDir + steer).normalized;
         }
 
         private void FaceDirection(Vector3 dir)

@@ -192,9 +192,11 @@ namespace Pathogen
             allEntities.Remove(entity);
         }
 
+        private static readonly List<Entity> sharedEntityBuffer = new List<Entity>(32);
+
         public List<Entity> GetEntitiesInRange(Vector3 position, float range, Team? teamFilter = null)
         {
-            var result = new List<Entity>();
+            sharedEntityBuffer.Clear();
             float rangeSqr = range * range;
             for (int i = allEntities.Count - 1; i >= 0; i--)
             {
@@ -202,9 +204,9 @@ namespace Pathogen
                 if (e == null || e.IsDead) continue;
                 if (teamFilter.HasValue && e.team != teamFilter.Value) continue;
                 if ((e.transform.position - position).sqrMagnitude <= rangeSqr)
-                    result.Add(e);
+                    sharedEntityBuffer.Add(e);
             }
-            return result;
+            return sharedEntityBuffer;
         }
 
         public Entity GetNearestEnemy(Vector3 position, float range, Team myTeam)

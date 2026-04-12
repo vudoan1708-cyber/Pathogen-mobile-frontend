@@ -52,16 +52,18 @@ namespace Pathogen
             // before Start() runs. If currentHealth is 0 (unset), default to maxHealth.
         }
 
+        private DamageFlash damageFlash;
+
         protected virtual void Start()
         {
-            // If spawner didn't set currentHealth, default to maxHealth
             if (currentHealth <= 0f)
                 currentHealth = maxHealth;
+
+            damageFlash = gameObject.AddComponent<DamageFlash>();
 
             if (GameManager.Instance != null)
                 GameManager.Instance.RegisterEntity(this);
 
-            // Fire initial health event so health bars display correctly
             InvokeHealthChanged();
         }
 
@@ -113,7 +115,9 @@ namespace Pathogen
             currentHealth = Mathf.Max(0f, currentHealth - finalDamage);
             InvokeHealthChanged();
 
-            // Only spawn hit particles for skill damage (visuals provided), not auto-attacks
+            if (damageFlash != null)
+                damageFlash.Flash();
+
             if (visuals != null)
                 HitEffect.Spawn(transform.position, isMagic, visuals);
 
@@ -158,6 +162,52 @@ namespace Pathogen
             if (IsDead) return;
             currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
             InvokeHealthChanged();
+        }
+
+        private static readonly Collider[] overlapBuffer = new Collider[8];
+
+        public bool MoveBy(Vector3 delta, float collisionRadius = 0.5f)
+        {
+            if (delta.sqrMagnitude < 0.0001f) return false;
+
+            Vector3 target = transform.position + delta;
+            int count = Physics.OverlapSphereNonAlloc(target, collisionRadius, overlapBuffer,
+                ~0, QueryTriggerInteraction.Ignore);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (overlapBuffer[i] == null) continue;
+                if (overlapBuffer[i].transform == transform) continue;
+                if (overlapBuffer[i].transform.IsChildOf(transform)) continue;
+
+                var entity = overlapBuffer[i].GetComponentInParent<Entity>();
+
+                // Skip own entity
+                if (entity == this) continue;
+
+                if (entity != null && entity.entityType == EntityType.Minion) continue;
+                if (entity != null && entity.entityType == EntityType.Structure
+                    && this.entityType == EntityType.Minion) continue;
+
+                if (entity != null)
+                {
+                    Vector3 away = transform.position - entity.transform.position;
+                    away.y = 0f;
+                    if (away.sqrMagnitude > 0.01f)
+                    {
+                        Vector3 slide = Vector3.ProjectOnPlane(delta, -away.normalized);
+                        delta = slide.normalized * delta.magnitude + away.normalized * 0.02f;
+                    }
+                    else
+                    {
+                        delta = Vector3.right * delta.magnitude;
+                    }
+                    continue;
+                }
+            }
+
+            transform.position += delta;
+            return true;
         }
 
         protected virtual void Die(Entity killer)

@@ -2,11 +2,6 @@ using UnityEngine;
 
 namespace Pathogen
 {
-    /// <summary>
-    /// Spawns waves of 6 minions: 3 front row, 3 back row.
-    /// Front and back rows are ~4-5 units apart with organic noise.
-    /// Minions walk toward the enemy side and stop when they see an attackable target.
-    /// </summary>
     public class MinionSpawner : MonoBehaviour
     {
         [Header("Spawning")]
@@ -14,27 +9,28 @@ namespace Pathogen
         public float waveInterval = 30f;
 
         [Header("Formation")]
-        public int frontRow = 3;
-        public int backRow = 3;
-        public float rowGap = 4.5f;       // Distance between front and back row
-        public float lateralSpread = 1.5f; // Spread across Z axis within a row
-        public float noise = 0.6f;         // Random offset for organic feel
+        public int meleeCount = 3;
+        public int rangedCount = 3;
 
-        [Header("Minion Stats")]
-        public float minionHealth = 300f;
-        public float minionDamage = 10f;
-        public float minionSpeed = 4f;
-        public float minionArmor = 5f;
-        public float minionAttackRange = 2f;
-        public float minionAttackSpeed = 0.5f; // 2s between attacks
+        [Header("Melee Minion Stats")]
+        public float meleeHealth = 300f;
+        public float meleeDamage = 10f;
+        public float meleeSpeed = 2.5f;
+        public float meleeArmor = 5f;
+        public float meleeAttackRange = 2f;
+        public float meleeAttackSpeed = 0.5f;
+
+        [Header("Ranged Minion Stats")]
+        public float rangedHealth = 200f;
+        public float rangedDamage = 15f;
+        public float rangedSpeed = 2f;
+        public float rangedArmor = 3f;
+        public float rangedAttackRange = 7f;
+        public float rangedAttackSpeed = 0.6f;
 
         [Header("Waypoints")]
         public Vector3[] waypoints;
 
-        /// <summary>
-        /// Direction the wave marches (1 = positive X, -1 = negative X).
-        /// Set by GameBootstrap based on team.
-        /// </summary>
         public float marchDirection = 1f;
 
         private float waveTimer;
@@ -52,87 +48,94 @@ namespace Pathogen
             if (waveTimer <= 0f)
             {
                 waveTimer = waveInterval;
-                SpawnWave();
+                StartCoroutine(SpawnWave());
             }
         }
 
-        private void SpawnWave()
+        private System.Collections.IEnumerator SpawnWave()
         {
             Vector3 origin = transform.position;
+            int index = 0;
+            Minion waveAhead = null;
 
-            // Front row (closer to enemy)
-            for (int i = 0; i < frontRow; i++)
+            for (int i = 0; i < meleeCount; i++)
             {
-                float z = GetRowZ(i, frontRow);
-                float xNoise = Random.Range(-noise * 0.5f, noise * 0.5f);
-                float zNoise = Random.Range(-noise, noise);
-                Vector3 pos = origin + new Vector3(xNoise, 0f, z + zNoise);
-                SpawnMinion(pos);
+                waveAhead = SpawnMinion(origin, MinionType.Melee, index++, waveAhead);
+                yield return new WaitForSeconds(0.25f);
             }
 
-            // Back row (further from enemy, behind front row)
-            for (int i = 0; i < backRow; i++)
+            for (int i = 0; i < rangedCount; i++)
             {
-                float z = GetRowZ(i, backRow);
-                float xNoise = Random.Range(-noise * 0.5f, noise * 0.5f);
-                float zNoise = Random.Range(-noise, noise);
-                float backOffset = -marchDirection * (rowGap + Random.Range(-0.5f, 0.5f));
-                Vector3 pos = origin + new Vector3(backOffset + xNoise, 0f, z + zNoise);
-                SpawnMinion(pos);
+                waveAhead = SpawnMinion(origin, MinionType.Ranged, index++, waveAhead);
+                yield return new WaitForSeconds(0.25f);
             }
         }
 
-        /// <summary>
-        /// Distribute minions across the Z axis within a row.
-        /// </summary>
-        private float GetRowZ(int index, int total)
+        private Minion SpawnMinion(Vector3 position, MinionType type, int formationIndex, Minion waveAhead)
         {
-            if (total <= 1) return 0f;
-            float span = (total - 1) * lateralSpread;
-            return -span * 0.5f + index * lateralSpread;
-        }
+            bool isRanged = type == MinionType.Ranged;
 
-        private void SpawnMinion(Vector3 position)
-        {
             var minionGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            minionGO.name = team == Team.Virus ? "VirusMinion" : "ImmuneMinion";
             minionGO.transform.position = position;
-            minionGO.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+            minionGO.name = $"{team}{type}Minion";
+            minionGO.transform.localScale = isRanged
+                ? new Vector3(0.35f, 0.35f, 0.35f)
+                : new Vector3(0.45f, 0.45f, 0.45f);
 
             var renderer = minionGO.GetComponent<Renderer>();
-            renderer.material.color = team == Team.Virus
-                ? new Color(0.7f, 0.2f, 0.2f)
-                : new Color(0.2f, 0.5f, 0.8f);
+            renderer.material.color = isRanged
+                ? (team == Team.Virus ? new Color(0.85f, 0.3f, 0.3f) : new Color(0.3f, 0.6f, 0.9f))
+                : (team == Team.Virus ? new Color(0.7f, 0.2f, 0.2f) : new Color(0.2f, 0.5f, 0.8f));
 
-            // Use trigger collider so minions don't physically block each other or structures
-            // Tall trigger collider — Y is ignored for projectile hits (XZ detection only)
             var boxCollider = minionGO.GetComponent<BoxCollider>();
             boxCollider.isTrigger = true;
             boxCollider.size = new Vector3(1f, 15f, 1f);
 
-            // Kinematic Rigidbody required for trigger detection with projectiles
-            // Movement still uses transform.position — kinematic doesn't interfere
             var rb = minionGO.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
 
+            var solidCollider = new GameObject("SolidCollider");
+            solidCollider.transform.SetParent(minionGO.transform, false);
+            var solidSphere = solidCollider.AddComponent<SphereCollider>();
+            solidSphere.radius = 0.5f;
+
             var minion = minionGO.AddComponent<Minion>();
             minion.team = team;
             minion.entityName = minionGO.name;
-            minion.maxHealth = minionHealth;
-            minion.currentHealth = minionHealth;
-            minion.attackDamage = minionDamage;
-            minion.moveSpeed = minionSpeed + Random.Range(-0.3f, 0.3f); // Slight speed variance
-            minion.armor = minionArmor;
-            minion.attackRange = minionAttackRange;
-            minion.attackSpeed = minionAttackSpeed;
+            minion.minionType = type;
+            minion.formationIndex = formationIndex;
+            minion.waveAhead = waveAhead;
             minion.waypoints = waypoints;
+
+            if (isRanged)
+            {
+                minion.maxHealth = rangedHealth;
+                minion.currentHealth = rangedHealth;
+                minion.attackDamage = rangedDamage;
+                minion.moveSpeed = rangedSpeed;
+                minion.armor = rangedArmor;
+                minion.attackRange = rangedAttackRange;
+                minion.attackSpeed = rangedAttackSpeed;
+            }
+            else
+            {
+                minion.maxHealth = meleeHealth;
+                minion.currentHealth = meleeHealth;
+                minion.attackDamage = meleeDamage;
+                minion.moveSpeed = meleeSpeed;
+                minion.armor = meleeArmor;
+                minion.attackRange = meleeAttackRange;
+                minion.attackSpeed = meleeAttackSpeed;
+            }
 
             var healthBar = minionGO.AddComponent<FloatingHealthBar>();
             healthBar.heightOffset = 0.8f;
             healthBar.barWidth = 0.5f;
 
             minionGO.AddComponent<TargetHighlight>();
+
+            return minion;
         }
     }
 }

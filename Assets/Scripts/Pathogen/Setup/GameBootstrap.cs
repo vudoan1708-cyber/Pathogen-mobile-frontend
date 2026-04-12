@@ -17,9 +17,6 @@ namespace Pathogen
         public float laneLength = 80f;
         public float groundWidth = 30f;
 
-        [Header("Camera Mode")]
-        public CameraMode startingCameraMode = CameraMode.WideThirdPerson;
-
         /// <summary>
         /// Single font used by all UI text in the game. Created once here at startup.
         /// </summary>
@@ -35,8 +32,6 @@ namespace Pathogen
 
         void Awake()
         {
-            Debug.Log($"[GameBootstrap] IsMobile={IsMobile}, Touchscreen.current={Touchscreen.current}, isMobilePlatform={Application.isMobilePlatform}");
-
             // Lock to landscape on mobile (no-op on desktop)
             Screen.autorotateToPortrait = false;
             Screen.autorotateToPortraitUpsideDown = false;
@@ -87,30 +82,31 @@ namespace Pathogen
             ground.transform.position = new Vector3(0f, -0.5f, 0f);
             ground.transform.localScale = new Vector3(laneLength + 20f, 1f, groundWidth);
             ground.GetComponent<Renderer>().material.color = new Color(0.25f, 0.18f, 0.22f);
+            DestroyImmediate(ground.GetComponent<BoxCollider>());
             ground.isStatic = true;
 
-            // Lane path (lighter strip down the center)
             var lanePath = GameObject.CreatePrimitive(PrimitiveType.Cube);
             lanePath.name = "LanePath";
             lanePath.transform.position = new Vector3(0f, 0.01f, 0f);
             lanePath.transform.localScale = new Vector3(laneLength, 0.05f, 4f);
             lanePath.GetComponent<Renderer>().material.color = new Color(0.35f, 0.25f, 0.30f);
+            DestroyImmediate(lanePath.GetComponent<BoxCollider>());
             lanePath.isStatic = true;
 
-            // Virus side coloring (left half tint)
             var virusSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
             virusSide.name = "VirusSideMarker";
             virusSide.transform.position = new Vector3(-laneLength * 0.25f, 0.02f, 0f);
             virusSide.transform.localScale = new Vector3(laneLength * 0.5f, 0.03f, groundWidth - 2f);
             virusSide.GetComponent<Renderer>().material.color = new Color(0.3f, 0.15f, 0.15f, 0.5f);
+            DestroyImmediate(virusSide.GetComponent<BoxCollider>());
             virusSide.isStatic = true;
 
-            // Immune side coloring
             var immuneSide = GameObject.CreatePrimitive(PrimitiveType.Cube);
             immuneSide.name = "ImmuneSideMarker";
             immuneSide.transform.position = new Vector3(laneLength * 0.25f, 0.02f, 0f);
             immuneSide.transform.localScale = new Vector3(laneLength * 0.5f, 0.03f, groundWidth - 2f);
             immuneSide.GetComponent<Renderer>().material.color = new Color(0.15f, 0.2f, 0.3f, 0.5f);
+            DestroyImmediate(immuneSide.GetComponent<BoxCollider>());
             immuneSide.isStatic = true;
         }
 
@@ -121,15 +117,15 @@ namespace Pathogen
             float half = laneLength * 0.5f;
 
             // Virus structures (Infection Nodes)
-            CreateStructure("InfectionNode_1", Team.Virus, new Vector3(-half * 0.4f, 0f, 0f),
+            CreateStructure("InfectionNode_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
                            1500f, 80f, 10f, new Color(0.8f, 0.15f, 0.15f));
-            CreateStructure("InfectionNode_2", Team.Virus, new Vector3(-half * 0.75f, 0f, 0f),
+            CreateStructure("InfectionNode_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
                            2000f, 100f, 12f, new Color(0.6f, 0.1f, 0.1f));
 
             // Immune structures (Sentinels)
-            CreateStructure("Sentinel_1", Team.Immune, new Vector3(half * 0.4f, 0f, 0f),
+            CreateStructure("Sentinel_1", Team.Immune, new Vector3(half * 0.4f, 0f, -3f),
                            1500f, 80f, 10f, new Color(0.15f, 0.4f, 0.8f));
-            CreateStructure("Sentinel_2", Team.Immune, new Vector3(half * 0.75f, 0f, 0f),
+            CreateStructure("Sentinel_2", Team.Immune, new Vector3(half * 0.75f, 0f, -3f),
                            2000f, 100f, 12f, new Color(0.1f, 0.3f, 0.6f));
         }
 
@@ -139,7 +135,7 @@ namespace Pathogen
             var structGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             structGO.name = name;
             structGO.transform.position = position;
-            structGO.transform.localScale = new Vector3(2f, 3f, 2f);
+            structGO.transform.localScale = new Vector3(1.2f, 3f, 1.2f);
             structGO.GetComponent<Renderer>().material.color = color;
 
             // Trigger collider so minions can walk through (structures detect via range, not physics)
@@ -148,6 +144,12 @@ namespace Pathogen
             var rb = structGO.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
+
+            // Solid child collider for blocking movement
+            var solidCollider = new GameObject("SolidCollider");
+            solidCollider.transform.SetParent(structGO.transform, false);
+            var solidBox = solidCollider.AddComponent<BoxCollider>();
+            solidBox.size = Vector3.one;
 
             var structure = structGO.AddComponent<Structure>();
             structure.team = team;
@@ -181,7 +183,7 @@ namespace Pathogen
                 new Color(0.2f, 0.6f, 1f),
                 GetImmuneSkills());
 
-            var playerCtrl = playerChampion.gameObject.AddComponent<PlayerController>();
+            var playerCtrl = PlayerController.Create(playerChampion.gameObject);
 
             var cc = playerChampion.gameObject.AddComponent<CharacterController>();
             cc.height = 1f;
@@ -453,7 +455,7 @@ namespace Pathogen
 
             var camCtrl = camGO.AddComponent<CameraController>();
             camCtrl.target = playerChampion.transform;
-            camCtrl.SetMode(startingCameraMode);
+            camCtrl.mapFlipped = playerChampion.transform.position.x > 0f;
         }
 
         // ─── UI ─────────────────────────────────────────────────────────
@@ -599,10 +601,10 @@ namespace Pathogen
             var playerInputRef = playerChampion.GetComponent<PlayerController>();
 
             float arcCenterX = -(AutoAttackButton.Margin + AutoAttackButton.BigButtonSize * 0.5f);
-            float arcCenterY = AutoAttackButton.Margin + AutoAttackButton.BigButtonSize * 0.5f;
+            float arcCenterY = AutoAttackButton.Margin + AutoAttackButton.BigButtonSize * 0.5f + 20f;
             float arcRadius = AutoAttackButton.BigButtonSize * 0.5f + AutoAttackButton.SmallButtonSize
                 + AutoAttackButton.ButtonGap + 60f;
-            float[] arcAngles = { 210f, 170f, 135f, 105f };
+            float[] arcAngles = { 195f, 160f, 130f, 105f };
 
             for (int i = 0; i < 4; i++)
             {
@@ -621,7 +623,7 @@ namespace Pathogen
 
                 var btnGO = CreateButton(canvasGO.transform, $"SkillBtn_{skillNames[i]}",
                     new Vector2(IsMobile ? 1f : 0.5f, 0f), pos,
-                    65f, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile);
+                    IsMobile ? 75f : 65f, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile);
 
                 var btn = btnGO.AddComponent<Button>();
                 hud.skillButtons[i] = btn;
@@ -642,15 +644,6 @@ namespace Pathogen
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(80f, 35f), "MUTATE", 12, Color.white);
 
-            // ── Camera Mode Button ──
-            var camBtnGO = CreateUIImage(canvasGO.transform, "CamModeButton",
-                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-110f, -20f),
-                new Vector2(80f, 35f), new Color(0.3f, 0.3f, 0.5f, 0.9f));
-            hud.cameraModeButton = camBtnGO.AddComponent<Button>();
-            CreateUIText(camBtnGO.transform, "CamLabel",
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(80f, 35f), "CAM [C]", 11, Color.white);
-
             // ── Joystick (bottom left, circular) ──
             var joystickBG = CreateUIImage(canvasGO.transform, "JoystickBG",
                 new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110f, 110f),
@@ -670,7 +663,6 @@ namespace Pathogen
             if (playerInput != null) playerInput.moveJoystick = joystick;
 
             // ── Auto-Attack Buttons (mobile only) ──
-            Debug.Log($"[GameBootstrap] Creating attack buttons? IsMobile={IsMobile}");
             if (IsMobile)
             {
                 float atkMargin = AutoAttackButton.Margin;
