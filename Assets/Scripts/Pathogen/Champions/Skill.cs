@@ -89,6 +89,11 @@ namespace Pathogen
         public float manaCost = 40f;
         public float range = 10f;
         public bool isMagicDamage = true;
+        public bool rootWhileChanneling = false;
+        public float maxChannelTime = 0f;
+        public bool rootOnFire = false;           // Champion stops movement when skill fires
+        public bool faceSkillDirection = false;    // Champion rotates to face the skill direction on fire
+        public bool freeMoveDuringFire = true;     // Champion can move freely during and after firing
 
         // Projectile behavior
         public float projectileSpeed = 15f;

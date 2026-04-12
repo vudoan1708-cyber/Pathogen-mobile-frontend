@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 
 namespace Pathogen
@@ -23,12 +24,26 @@ namespace Pathogen
         /// Single font used by all UI text in the game. Created once here at startup.
         /// </summary>
         public static Font UIFont { get; private set; }
+#if UNITY_EDITOR
+        public static bool IsMobile => UnityEngine.Device.Application.isMobilePlatform;
+#else
+        public static bool IsMobile => Application.isMobilePlatform;
+#endif
 
         private Champion playerChampion;
         private Champion aiChampion;
 
         void Awake()
         {
+            Debug.Log($"[GameBootstrap] IsMobile={IsMobile}, Touchscreen.current={Touchscreen.current}, isMobilePlatform={Application.isMobilePlatform}");
+
+            // Lock to landscape on mobile (no-op on desktop)
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.AutoRotation;
+
             UIFont = Font.CreateDynamicFontFromOSFont("Arial", 14);
 
             SetupGameManager();
@@ -450,10 +465,12 @@ namespace Pathogen
             var canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
+            canvas.pixelPerfect = true;
             var scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
+            scaler.referencePixelsPerUnit = 100;
             canvasGO.AddComponent<GraphicRaycaster>();
 
             // EventSystem — ensure it uses new Input System, not legacy
@@ -476,76 +493,144 @@ namespace Pathogen
             var hud = canvasGO.AddComponent<HUDManager>();
             hud.playerChampion = playerChampion;
 
-            // ── Human Health Bar (top center) ──
-            var humanHealthBG = CreateUIImage(canvasGO.transform, "HumanHealthBG",
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f),
-                new Vector2(400f, 30f), new Color(0.15f, 0.15f, 0.15f, 0.9f));
+            // ── Human Health Bar (top center, gradient with labels) ──
+            var healthBarContainer = new GameObject("HumanHealthContainer", typeof(RectTransform));
+            healthBarContainer.transform.SetParent(canvasGO.transform, false);
+            var containerRT = healthBarContainer.GetComponent<RectTransform>();
+            containerRT.anchorMin = new Vector2(0.5f, 1f);
+            containerRT.anchorMax = new Vector2(0.5f, 1f);
+            containerRT.pivot = new Vector2(0.5f, 1f);
+            containerRT.anchoredPosition = new Vector2(0f, -10f);
+            containerRT.sizeDelta = new Vector2(500f, 80f);
 
-            var humanHealthFill = CreateUIImage(humanHealthBG.transform, "HumanHealthFill",
-                new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0f),
-                new Vector2(400f, 30f), Color.yellow);
-            humanHealthFill.GetComponent<Image>().type = Image.Type.Filled;
-            humanHealthFill.GetComponent<Image>().fillMethod = Image.FillMethod.Horizontal;
-            humanHealthFill.GetComponent<Image>().fillAmount = 0.5f;
-            hud.humanHealthFill = humanHealthFill.GetComponent<Image>();
+            // Don't block clicks — health bar is display-only
+            var containerCG = healthBarContainer.AddComponent<CanvasGroup>();
+            containerCG.blocksRaycasts = false;
+            containerCG.interactable = false;
 
-            var humanHealthText = CreateUIText(humanHealthBG.transform, "HumanHealthText",
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(400f, 30f), "HOST: 50% — NORMAL", 14, Color.white);
-            hud.humanHealthText = humanHealthText;
+            // Dark background bar
+            var barBG = new GameObject("BarBG", typeof(RectTransform));
+            barBG.transform.SetParent(healthBarContainer.transform, false);
+            var barBGRT = barBG.GetComponent<RectTransform>();
+            barBGRT.anchorMin = new Vector2(0f, 0.4f);
+            barBGRT.anchorMax = new Vector2(1f, 0.7f);
+            barBGRT.offsetMin = Vector2.zero;
+            barBGRT.offsetMax = Vector2.zero;
+            var barBGImg = barBG.AddComponent<Image>();
+            barBGImg.color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
 
-            // ── Player Health Bar (bottom center-left) ──
-            var healthBG = CreateUIImage(canvasGO.transform, "HealthBarBG",
-                new Vector2(0.35f, 0f), new Vector2(0.35f, 0f), new Vector2(0f, 60f),
-                new Vector2(200f, 18f), new Color(0.3f, 0.1f, 0.1f, 0.9f));
+            // Gradient fill — anchorMax.x controls fill amount
+            var gradientTex = HumanHealthBar.CreateGradientTexture(256);
+            var gradientSprite = Sprite.Create(gradientTex,
+                new Rect(0, 0, gradientTex.width, gradientTex.height), new Vector2(0, 0.5f));
 
-            var healthFill = CreateUIImage(healthBG.transform, "HealthFill",
-                new Vector2(0f, 0f), new Vector2(0f, 0f), Vector2.zero,
-                new Vector2(200f, 18f), new Color(0.2f, 0.8f, 0.2f));
-            healthFill.GetComponent<Image>().type = Image.Type.Filled;
-            healthFill.GetComponent<Image>().fillMethod = Image.FillMethod.Horizontal;
-            hud.healthBarFill = healthFill.GetComponent<Image>();
+            var fillGO = new GameObject("GradientFill", typeof(RectTransform));
+            fillGO.transform.SetParent(barBG.transform, false);
+            var fillRT = fillGO.GetComponent<RectTransform>();
+            fillRT.anchorMin = Vector2.zero;
+            fillRT.anchorMax = new Vector2(0.5f, 1f);
+            fillRT.offsetMin = Vector2.zero;
+            fillRT.offsetMax = Vector2.zero;
+            var fillImg = fillGO.AddComponent<Image>();
+            fillImg.sprite = gradientSprite;
 
-            // ── Player Mana Bar ──
-            var manaBG = CreateUIImage(canvasGO.transform, "ManaBarBG",
-                new Vector2(0.35f, 0f), new Vector2(0.35f, 0f), new Vector2(0f, 38f),
-                new Vector2(200f, 14f), new Color(0.1f, 0.1f, 0.3f, 0.9f));
+            // Animated trail (shows impact of health changes)
+            var trailGO = new GameObject("Trail", typeof(RectTransform));
+            trailGO.transform.SetParent(barBG.transform, false);
+            var trailRT = trailGO.GetComponent<RectTransform>();
+            trailRT.anchorMin = new Vector2(0.5f, 0f);
+            trailRT.anchorMax = new Vector2(0.5f, 1f);
+            trailRT.offsetMin = Vector2.zero;
+            trailRT.offsetMax = Vector2.zero;
+            var trailImg = trailGO.AddComponent<Image>();
+            trailImg.color = new Color(1f, 0.2f, 0.1f, 0.5f);
 
-            var manaFill = CreateUIImage(manaBG.transform, "ManaFill",
-                new Vector2(0f, 0f), new Vector2(0f, 0f), Vector2.zero,
-                new Vector2(200f, 14f), new Color(0.3f, 0.4f, 0.9f));
-            manaFill.GetComponent<Image>().type = Image.Type.Filled;
-            manaFill.GetComponent<Image>().fillMethod = Image.FillMethod.Horizontal;
-            hud.manaBarFill = manaFill.GetComponent<Image>();
+            // Labels row (below bar)
+            var deathLabel = CreateUIText(healthBarContainer.transform, "DeathLabel",
+                new Vector2(0f, 0.25f), new Vector2(0f, 0.25f), new Vector2(50f, 0f),
+                new Vector2(100f, 18f), "\u2620 DEATH 0%", 11, new Color(1f, 0.3f, 0.3f));
 
-            // ── Level + Bio-currency (top left) ──
-            hud.levelText = CreateUIText(canvasGO.transform, "LevelText",
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -20f),
-                new Vector2(100f, 30f), "Lv.1", 18, Color.white);
+            var midLabel = CreateUIText(healthBarContainer.transform, "MidLabel",
+                new Vector2(0.5f, 0.25f), new Vector2(0.5f, 0.25f), Vector2.zero,
+                new Vector2(50f, 18f), "50%", 11, new Color(0.8f, 0.8f, 0.8f));
 
+            var healthyLabel = CreateUIText(healthBarContainer.transform, "HealthyLabel",
+                new Vector2(1f, 0.25f), new Vector2(1f, 0.25f), new Vector2(-55f, 0f),
+                new Vector2(130f, 18f), "HEALTHY 100%\u2728", 11, new Color(0.3f, 1f, 0.3f));
+
+            // "HOST CONDITION" subtitle
+            CreateUIText(healthBarContainer.transform, "HostCondLabel",
+                new Vector2(0.5f, 0.12f), new Vector2(0.5f, 0.12f), Vector2.zero,
+                new Vector2(200f, 14f), "HOST CONDITION", 10, new Color(0.5f, 0.5f, 0.5f));
+
+            // Condition text (bold)
+            var conditionText = CreateUIText(healthBarContainer.transform, "ConditionText",
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 5f),
+                new Vector2(400f, 20f), "STABLE \u2014 MILD SYMPTOMS", 15,
+                new Color(1f, 0.9f, 0.3f));
+            conditionText.fontStyle = FontStyle.Bold;
+
+            // Wire HumanHealthBar component
+            var hhBar = healthBarContainer.AddComponent<HumanHealthBar>();
+            hhBar.gradientFill = fillImg;
+            hhBar.animatedTrail = trailImg;
+            hhBar.percentText = midLabel;
+            hhBar.conditionText = conditionText;
+            hhBar.deathLabel = deathLabel;
+            hhBar.healthyLabel = healthyLabel;
+
+            // HUD backward compat
+            hud.humanHealthFill = fillImg;
+            hud.humanHealthText = midLabel;
+
+            // ── Champion Stats (world-space, follows each champion) ──
+            CreateChampionWorldStats(playerChampion);
+            CreateChampionWorldStats(aiChampion);
+
+            // Bio-currency (top left of screen HUD)
             hud.bioCurrencyText = CreateUIText(canvasGO.transform, "BioText",
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -50f),
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -20f),
                 new Vector2(150f, 25f), "0", 16, new Color(1f, 0.85f, 0.2f));
 
-            // ── Skill Buttons (bottom right) ──
+            // ── Skill Buttons ──
             var skillNames = new string[] { "Q", "W", "E", "R" };
             hud.skillButtons = new Button[4];
             hud.skillCooldownTexts = new Text[4];
+            var playerInputRef = playerChampion.GetComponent<PlayerController>();
+
+            float arcCenterX = -(AutoAttackButton.Margin + AutoAttackButton.BigButtonSize * 0.5f);
+            float arcCenterY = AutoAttackButton.Margin + AutoAttackButton.BigButtonSize * 0.5f;
+            float arcRadius = AutoAttackButton.BigButtonSize * 0.5f + AutoAttackButton.SmallButtonSize
+                + AutoAttackButton.ButtonGap + 60f;
+            float[] arcAngles = { 210f, 170f, 135f, 105f };
 
             for (int i = 0; i < 4; i++)
             {
-                float xOffset = -260f + i * 65f;
-                var btnGO = CreateUIImage(canvasGO.transform, $"SkillBtn_{skillNames[i]}",
-                    new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(xOffset, 50f),
-                    new Vector2(55f, 55f), new Color(0.3f, 0.3f, 0.3f, 0.9f));
+                Vector2 pos;
+                if (IsMobile)
+                {
+                    float rad = arcAngles[i] * Mathf.Deg2Rad;
+                    pos = new Vector2(
+                        arcCenterX + Mathf.Cos(rad) * arcRadius,
+                        arcCenterY + Mathf.Sin(rad) * arcRadius);
+                }
+                else
+                {
+                    pos = new Vector2(-133f + i * 89f, 50f);
+                }
+
+                var btnGO = CreateButton(canvasGO.transform, $"SkillBtn_{skillNames[i]}",
+                    new Vector2(IsMobile ? 1f : 0.5f, 0f), pos,
+                    65f, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile);
 
                 var btn = btnGO.AddComponent<Button>();
                 hud.skillButtons[i] = btn;
 
-                var txt = CreateUIText(btnGO.transform, "Label",
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                    new Vector2(55f, 55f), skillNames[i], 14, Color.white);
-                hud.skillCooldownTexts[i] = txt;
+                var skillBtn = btnGO.AddComponent<SkillButton>();
+                skillBtn.skillIndex = i;
+                skillBtn.playerController = playerInputRef;
+
+                hud.skillCooldownTexts[i] = btnGO.GetComponentInChildren<Text>();
             }
 
             // ── Shop Button ──
@@ -578,13 +663,53 @@ namespace Pathogen
             MakeCircular(joystickHandle);
 
             var joystick = joystickBG.AddComponent<VirtualJoystick>();
-            joystick.background = joystickBG.GetComponent<RectTransform>();
             joystick.handle = joystickHandle.GetComponent<RectTransform>();
             joystick.handleRange = 55f;
 
-            // Wire joystick to player controller
-            var pc = playerChampion.GetComponent<PlayerController>();
-            if (pc != null) pc.moveJoystick = joystick;
+            var playerInput = playerChampion.GetComponent<PlayerController>();
+            if (playerInput != null) playerInput.moveJoystick = joystick;
+
+            // ── Auto-Attack Buttons (mobile only) ──
+            Debug.Log($"[GameBootstrap] Creating attack buttons? IsMobile={IsMobile}");
+            if (IsMobile)
+            {
+                float atkMargin = AutoAttackButton.Margin;
+                float bigBtn = AutoAttackButton.BigButtonSize;
+                float smallBtn = AutoAttackButton.SmallButtonSize;
+                float btnGap = AutoAttackButton.ButtonGap;
+
+                Color btnFill = new Color(1f, 1f, 1f, 0.25f);
+
+                var champBtn = CreateButton(canvasGO.transform, "ChampionAttackBtn",
+                    new Vector2(1f, 0f),
+                    new Vector2(-(atkMargin + bigBtn * 0.5f), atkMargin + bigBtn * 0.5f),
+                    bigBtn, btnFill, "ATK");
+                var champAtk = champBtn.AddComponent<AutoAttackButton>();
+                champAtk.targetType = AttackTargetType.Champion;
+                champAtk.playerController = playerInput;
+                champAtk.activeRing = CreateActiveRing(champBtn.transform, bigBtn);
+                champAtk.content = champBtn.transform.Find("Label").gameObject;
+
+                var minionBtn = CreateButton(canvasGO.transform, "MinionAttackBtn",
+                    new Vector2(1f, 0f),
+                    new Vector2(-(atkMargin + bigBtn + btnGap + smallBtn * 0.5f), atkMargin + bigBtn * 0.5f),
+                    smallBtn, btnFill, "M");
+                var minionAtk = minionBtn.AddComponent<AutoAttackButton>();
+                minionAtk.targetType = AttackTargetType.Minion;
+                minionAtk.playerController = playerInput;
+                minionAtk.activeRing = CreateActiveRing(minionBtn.transform, smallBtn);
+                minionAtk.content = minionBtn.transform.Find("Label").gameObject;
+
+                var structBtn = CreateButton(canvasGO.transform, "StructureAttackBtn",
+                    new Vector2(1f, 0f),
+                    new Vector2(-(atkMargin + bigBtn * 0.5f), atkMargin + bigBtn + btnGap + smallBtn * 0.5f),
+                    smallBtn, btnFill, "S");
+                var structAtk = structBtn.AddComponent<AutoAttackButton>();
+                structAtk.targetType = AttackTargetType.Structure;
+                structAtk.playerController = playerInput;
+                structAtk.activeRing = CreateActiveRing(structBtn.transform, smallBtn);
+                structAtk.content = structBtn.transform.Find("Label").gameObject;
+            }
 
             // ── Shop Panel (hidden by default) ──
             var shopPanel = CreateUIImage(canvasGO.transform, "ShopPanel",
@@ -611,6 +736,26 @@ namespace Pathogen
             hud.gameOverText = CreateUIText(gameOverPanel.transform, "GameOverText",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(400f, 200f), "GAME OVER", 30, Color.white);
+
+            // ── Death Overlay + Respawn Countdown ──
+            // Full-screen semi-transparent black overlay
+            var respawnPanel = new GameObject("RespawnPanel", typeof(RectTransform));
+            respawnPanel.transform.SetParent(canvasGO.transform, false);
+            var rpRT = respawnPanel.GetComponent<RectTransform>();
+            rpRT.anchorMin = Vector2.zero;
+            rpRT.anchorMax = Vector2.one;
+            rpRT.offsetMin = Vector2.zero;
+            rpRT.offsetMax = Vector2.zero;
+            var rpImg = respawnPanel.AddComponent<Image>();
+            rpImg.color = new Color(0f, 0f, 0f, 0.5f);
+            respawnPanel.SetActive(false);
+            hud.respawnPanel = respawnPanel;
+
+            // Respawn text — centered on screen, below the health bar area
+            hud.respawnCountdownText = CreateUIText(respawnPanel.transform, "RespawnText",
+                new Vector2(0.5f, 0.55f), new Vector2(0.5f, 0.55f), Vector2.zero,
+                new Vector2(400f, 50f), "", 24, new Color(1f, 0.4f, 0.4f));
+            hud.respawnCountdownText.fontStyle = FontStyle.Bold;
         }
 
         // ─── UI HELPERS ─────────────────────────────────────────────────
@@ -660,6 +805,22 @@ namespace Pathogen
         // Cache the circle sprite so we only generate it once
         private static Sprite circleSprite;
 
+        private GameObject CreateButton(Transform parent, string name,
+            Vector2 anchor, Vector2 anchoredPos, float size, Color color, string label,
+            bool circular = true)
+        {
+            var go = CreateUIImage(parent, name, anchor, anchor, anchoredPos,
+                new Vector2(size, size), color);
+            go.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
+            if (circular) MakeCircular(go);
+
+            CreateUIText(go.transform, "Label",
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(size, size), label, (int)(size * 0.25f), Color.white);
+
+            return go;
+        }
+
         private void MakeCircular(GameObject go)
         {
             if (circleSprite == null)
@@ -688,6 +849,119 @@ namespace Pathogen
             tex.Apply();
             tex.filterMode = FilterMode.Bilinear;
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+        }
+
+        private Sprite ringSprite;
+
+        private Sprite GetRingSprite()
+        {
+            if (ringSprite != null) return ringSprite;
+
+            int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float radius = size * 0.5f;
+            float innerRadius = radius - 3f;
+            Color clear = new Color(0, 0, 0, 0);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(radius, radius));
+                    tex.SetPixel(x, y, dist <= radius && dist >= innerRadius ? Color.white : clear);
+                }
+            }
+
+            tex.Apply();
+            tex.filterMode = FilterMode.Bilinear;
+            ringSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+            return ringSprite;
+        }
+
+        private GameObject CreateActiveRing(Transform parent, float buttonSize)
+        {
+            float ringSize = buttonSize + AutoAttackButton.ActiveRingPadding * 2f;
+            var go = new GameObject("ActiveRing", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(ringSize, ringSize);
+
+            var img = go.AddComponent<Image>();
+            img.sprite = GetRingSprite();
+            img.color = Color.white;
+            img.raycastTarget = false;
+
+            go.SetActive(false);
+            return go;
+        }
+        private ChampionStats CreateChampionWorldStats(Champion champ)
+        {
+            var container = new GameObject("ChampionStats");
+            container.transform.SetParent(champ.transform, false);
+            container.transform.localPosition = new Vector3(0f, 1.6f, 0f);
+
+            var canvas = container.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 50;
+            var rt = container.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(1.5f, 0.5f);
+            rt.localScale = Vector3.one * 0.015f;
+
+            var cg = container.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+
+            // Level (left side)
+            var lvlText = CreateUIText(container.transform, "LevelText",
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(5f, 0f),
+                new Vector2(18f, 18f), "1", 14, Color.white);
+            lvlText.fontStyle = FontStyle.Bold;
+
+            float barWidth = 70f;
+            float barHeight = 7f;
+
+            // Health bar (top) — trail behind fill, both stretch via anchors
+            var healthBG = CreateUIImage(container.transform, "HealthBarBG",
+                new Vector2(0f, 0.35f), new Vector2(0f, 0.35f), new Vector2(22f, 0f),
+                new Vector2(barWidth, barHeight), new Color(0.2f, 0.2f, 0.2f, 0.9f));
+            healthBG.GetComponent<RectTransform>().pivot = new Vector2(0f, 0.5f);
+
+            var healthTrailGO = CreateUIImage(healthBG.transform, "HealthTrail",
+                new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero,
+                Vector2.zero, new Color(1f, 0.2f, 0.1f, 0.6f));
+
+            var healthFillGO = CreateUIImage(healthBG.transform, "HealthFill",
+                new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero,
+                Vector2.zero, new Color(0.2f, 0.8f, 0.2f));
+
+            // Mana bar (bottom)
+            var manaBG = CreateUIImage(container.transform, "ManaBarBG",
+                new Vector2(0f, 0.65f), new Vector2(0f, 0.65f), new Vector2(22f, 0f),
+                new Vector2(barWidth, barHeight), new Color(0.1f, 0.1f, 0.2f, 0.9f));
+            manaBG.GetComponent<RectTransform>().pivot = new Vector2(0f, 0.5f);
+
+            var manaTrailGO = CreateUIImage(manaBG.transform, "ManaTrail",
+                new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero,
+                Vector2.zero, new Color(1f, 0.2f, 0.1f, 0.6f));
+
+            var manaFillGO = CreateUIImage(manaBG.transform, "ManaFill",
+                new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero,
+                Vector2.zero, new Color(0.3f, 0.4f, 0.9f));
+
+            var stats = container.AddComponent<ChampionStats>();
+            stats.champion = champ;
+            stats.healthFill = healthFillGO.GetComponent<RectTransform>();
+            stats.healthTrail = healthTrailGO.GetComponent<RectTransform>();
+            stats.manaFill = manaFillGO.GetComponent<RectTransform>();
+            stats.manaTrail = manaTrailGO.GetComponent<RectTransform>();
+            stats.levelText = lvlText;
+            champ.Stats = stats;
+
+            return stats;
         }
     }
 }

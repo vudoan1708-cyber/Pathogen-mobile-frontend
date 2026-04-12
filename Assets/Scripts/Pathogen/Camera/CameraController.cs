@@ -77,22 +77,23 @@ namespace Pathogen
 
         [Header("Edge Pan (Desktop)")]
         public float edgePanSpeed = 20f;
-        public float edgeThreshold = 5f; // Pixels from screen edge to start panning
+        public float edgeThreshold = 5f;
+
+        [Header("Terrain Bounds")]
+        public float minX = -50f;
+        public float maxX = 50f;
+        public float minZ = -15f;
+        public float maxZ = 15f;
 
         [Header("Recenter")]
         public KeyCode recenterKey = KeyCode.Space;
 
         public VirtualJoystick joystick;
-
-        /// <summary>
-        /// True when camera should follow champion: mobile device OR joystick is being used.
-        /// </summary>
         public bool followChampion;
 
         private CameraProfile profile;
         private Camera cam;
         private Vector3 currentVelocity;
-
         private Vector3 focusPoint;
         private bool hasCentered;
 
@@ -109,52 +110,61 @@ namespace Pathogen
         {
             if (target == null || profile == null) return;
 
-            // Lazy-find joystick on first use
             if (joystick == null)
                 joystick = FindAnyObjectByType<VirtualJoystick>();
 
             bool joystickActive = joystick != null && joystick.IsDragging;
-            followChampion = Application.isMobilePlatform || joystickActive;
+            followChampion = GameBootstrap.IsMobile || joystickActive;
 
             if (followChampion)
                 UpdateFollowCamera();
             else
                 UpdateDesktopCamera();
-        }
 
-        // ─── FOLLOW: joystick/mobile — camera tracks champion ───────────
+            ClampFocusPoint();
+        }
 
         private void UpdateFollowCamera()
         {
-            Vector3 desiredPosition = target.position + profile.offset;
+            // Right-side touch drag: pan camera proportionally to finger movement (no UI shown)
+            if (joystick != null && joystick.IsRightTouchActive)
+            {
+                Vector2 delta = joystick.RightTouchDelta;
+                focusPoint += new Vector3(delta.x, 0f, delta.y);
+            }
+            else if (joystick != null && joystick.RightTouchReleased)
+            {
+                // Finger lifted — snap camera back to champion
+                focusPoint = target.position;
+            }
+            else
+            {
+                focusPoint = target.position;
+            }
+
+            Vector3 desiredPosition = focusPoint + profile.offset;
 
             transform.position = Vector3.SmoothDamp(
                 transform.position, desiredPosition, ref currentVelocity,
                 1f / profile.followSpeed);
 
-            UpdateRotation(target.position);
+            UpdateRotation(focusPoint);
         }
-
-        // ─── DESKTOP: edge pan, champion-centered start ─────────────────
 
         private void UpdateDesktopCamera()
         {
-            // First frame: center on champion
             if (!hasCentered)
             {
                 focusPoint = target.position;
                 hasCentered = true;
             }
 
-            // Edge panning — move camera when mouse is at screen edges
             HandleEdgePan();
 
-            // Recenter on champion with Space
             var kb = Keyboard.current;
             if (kb != null && kb.spaceKey.wasPressedThisFrame)
                 focusPoint = target.position;
 
-            // Camera follows the focus point (not the champion)
             Vector3 desiredPosition = focusPoint + profile.offset;
 
             transform.position = Vector3.SmoothDamp(
@@ -166,8 +176,17 @@ namespace Pathogen
 
         private void HandleEdgePan()
         {
+            // Skip edge-pan if touch input is active (simulator or mobile)
+            var touchscreen = Touchscreen.current;
+            if (touchscreen != null && touchscreen.primaryTouch.press.isPressed)
+                return;
+
             var mouse = Mouse.current;
             if (mouse == null) return;
+
+            // Only edge-pan when mouse button is NOT pressed (avoid panning while clicking to move)
+            if (mouse.leftButton.isPressed || mouse.rightButton.isPressed)
+                return;
 
             Vector2 mousePos = mouse.position.ReadValue();
             Vector3 pan = Vector3.zero;
@@ -175,17 +194,13 @@ namespace Pathogen
             float screenW = Screen.width;
             float screenH = Screen.height;
 
-            // Left edge
             if (mousePos.x < edgeThreshold)
                 pan.x -= 1f;
-            // Right edge
             else if (mousePos.x > screenW - edgeThreshold)
                 pan.x += 1f;
 
-            // Bottom edge
             if (mousePos.y < edgeThreshold)
                 pan.z -= 1f;
-            // Top edge
             else if (mousePos.y > screenH - edgeThreshold)
                 pan.z += 1f;
 
@@ -193,7 +208,11 @@ namespace Pathogen
                 focusPoint += pan.normalized * edgePanSpeed * Time.deltaTime;
         }
 
-        // ─── SHARED ─────────────────────────────────────────────────────
+        private void ClampFocusPoint()
+        {
+            focusPoint.x = Mathf.Clamp(focusPoint.x, minX, maxX);
+            focusPoint.z = Mathf.Clamp(focusPoint.z, minZ, maxZ);
+        }
 
         private void UpdateRotation(Vector3 lookTarget)
         {
@@ -235,9 +254,6 @@ namespace Pathogen
                 cam.fieldOfView = customProfile.fov;
         }
 
-        /// <summary>
-        /// Re-center camera on the champion.
-        /// </summary>
         public void Recenter()
         {
             if (target != null)

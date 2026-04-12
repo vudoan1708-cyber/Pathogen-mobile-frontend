@@ -7,6 +7,7 @@ namespace Pathogen
     {
         [Header("Champion Identity")]
         public string championName = "Champion";
+        public float sightRange = 12f; // Per-champion vision/auto-retarget range
 
         [Header("Mana")]
         public float maxMana = 200f;
@@ -37,6 +38,8 @@ namespace Pathogen
         [Header("Skills")]
         public Skill[] skills = new Skill[4];
 
+        public ChampionStats Stats { get; set; }
+
         [Header("State")]
         public bool isDashing;
         public bool isBuffed;
@@ -55,6 +58,7 @@ namespace Pathogen
         public event Action<float> OnBioCurrencyChanged;
         public event Action<float, float> OnManaChanged;
         public event Action OnRespawn;
+        public event Action<float> OnRespawnTimerChanged; // Fires each second with remaining time
 
         protected override void Awake()
         {
@@ -67,9 +71,7 @@ namespace Pathogen
         {
             if (isRespawning)
             {
-                respawnTimer -= Time.deltaTime;
-                if (respawnTimer <= 0f)
-                    Respawn();
+                UpdateRespawnTimer();
                 return;
             }
 
@@ -341,26 +343,67 @@ namespace Pathogen
 
         protected override void Die(Entity killer)
         {
-            base.Die(killer); // Handles shared gold/XP distribution and health shift
+            base.Die(killer);
 
             if (isBuffed) RemoveBuff();
 
-            // Start respawn timer
+            // Clear all combat state
+            isDashing = false;
+            currentTarget = null;
+            attackCooldown = 0f;
+
+            // Reset all skill cooldowns
+            for (int i = 0; i < skills.Length; i++)
+            {
+                if (skills[i] != null)
+                    skills[i].currentCooldown = 0f;
+            }
+
+            // Start respawn countdown
             isRespawning = true;
             respawnTimer = respawnTime + (level * 0.5f);
+            lastRespawnSecond = -1;
 
-            // Hide but don't destroy
             GetComponent<Renderer>().enabled = false;
             GetComponent<Collider>().enabled = false;
+        }
+
+        private int lastRespawnSecond;
+
+        private void UpdateRespawnTimer()
+        {
+            respawnTimer -= Time.deltaTime;
+
+            // Fire event each whole second for countdown display
+            int currentSecond = Mathf.CeilToInt(respawnTimer);
+            if (currentSecond != lastRespawnSecond && currentSecond >= 0)
+            {
+                lastRespawnSecond = currentSecond;
+                OnRespawnTimerChanged?.Invoke(respawnTimer);
+            }
+
+            if (respawnTimer <= 0f)
+                Respawn();
         }
 
         private void Respawn()
         {
             isRespawning = false;
+
+            // Restore health and mana
             currentHealth = maxHealth;
             currentMana = maxMana;
-            transform.position = spawnPoint;
 
+            // Reset position to base
+            transform.position = spawnPoint;
+            transform.rotation = Quaternion.identity;
+
+            // Clear movement/combat state so champion starts idle
+            isDashing = false;
+            currentTarget = null;
+            attackCooldown = 0f;
+
+            // Show champion
             GetComponent<Renderer>().enabled = true;
             GetComponent<Collider>().enabled = true;
 

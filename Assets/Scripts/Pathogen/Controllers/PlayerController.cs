@@ -39,14 +39,28 @@ namespace Pathogen
         // Skill aiming
         private int aimingSkillIndex = -1;
         private SkillAimIndicator aimIndicator;
+        private bool aimStartedByClick;
+        private int aimStartFrame;
+        private bool skillFiredThisFrame; // True = button click (needs second click to fire), False = keyboard
 
         // Cancel button (X) — appears during skill aiming
-        private GameObject cancelButtonGO;
-        private RectTransform cancelButtonRT;
+        private GameObject skillCancelButton;
+        private RectTransform skillCancelButtonRect;
         private bool mouseOverCancel;
 
         // Attack target ground circle
         private GameObject attackCircle;
+
+        // Range indicator circle around champion
+        private GameObject rangeIndicator;
+        private Renderer rangeIndicatorRenderer;
+        private static readonly Color rangeInRange = new Color(0.3f, 0.6f, 1f, 0.15f);
+        private static readonly Color rangeOutOfRange = new Color(1f, 0.3f, 0.3f, 0.15f);
+
+        // Attack button targeting
+        private Entity attackButtonTarget;
+        private AttackTargetType? activeAttackTargetType;
+        private GameObject crosshairIndicator;
 
         private CharacterController characterController;
 
@@ -58,6 +72,23 @@ namespace Pathogen
             GenerateCursors();
             CreateCancelButton();
             CreateAttackCircle();
+            CreateCrosshairIndicator();
+            CreateRangeIndicator();
+
+            if (champion != null)
+                champion.OnRespawn += ResetControllerState;
+        }
+
+        private void ResetControllerState()
+        {
+            isMovingToTarget = false;
+            isChasing = false;
+            attackTarget = null;
+            attackButtonTarget = null;
+            activeAttackTargetType = null;
+            HideCrosshair();
+            CancelAiming();
+            ClearHover();
         }
 
         void Update()
@@ -70,6 +101,7 @@ namespace Pathogen
             }
             if (GameManager.Instance != null && !GameManager.Instance.GameActive) return;
 
+            skillFiredThisFrame = false;
             HandleSkillAiming();
 
             // Hover only when not aiming
@@ -149,51 +181,65 @@ namespace Pathogen
             // Start aiming on key press
             if (aimingSkillIndex < 0)
             {
-                if (kb.qKey.wasPressedThisFrame) TryStartAiming(0);
-                else if (kb.wKey.wasPressedThisFrame) TryStartAiming(1);
-                else if (kb.eKey.wasPressedThisFrame) TryStartAiming(2);
-                else if (kb.rKey.wasPressedThisFrame) TryStartAiming(3);
+                if (kb.qKey.wasPressedThisFrame) StartAiming(0, false);
+                else if (kb.wKey.wasPressedThisFrame) StartAiming(1, false);
+                else if (kb.eKey.wasPressedThisFrame) StartAiming(2, false);
+                else if (kb.rKey.wasPressedThisFrame) StartAiming(3, false);
             }
 
             if (aimingSkillIndex >= 0)
             {
                 UpdateAimIndicator();
 
-                // Check for key release
-                bool released = false;
-                switch (aimingSkillIndex)
+                // Keyboard-initiated: key release fires
+                if (!aimStartedByClick)
                 {
-                    case 0: released = kb.qKey.wasReleasedThisFrame; break;
-                    case 1: released = kb.wKey.wasReleasedThisFrame; break;
-                    case 2: released = kb.eKey.wasReleasedThisFrame; break;
-                    case 3: released = kb.rKey.wasReleasedThisFrame; break;
+                    bool released = false;
+                    switch (aimingSkillIndex)
+                    {
+                        case 0: released = kb.qKey.wasReleasedThisFrame; break;
+                        case 1: released = kb.wKey.wasReleasedThisFrame; break;
+                        case 2: released = kb.eKey.wasReleasedThisFrame; break;
+                        case 3: released = kb.rKey.wasReleasedThisFrame; break;
+                    }
+
+                    if (released)
+                    {
+                        if (mouseOverCancel)
+                            CancelAiming();
+                        else
+                            CastAimedSkill();
+                    }
                 }
 
-                if (released)
+                // Button-click-initiated: second click fires, re-click on UI cancels
+                if (aimStartedByClick && Time.frameCount > aimStartFrame)
                 {
-                    // If mouse is over the X cancel button, cancel instead of cast
-                    if (mouseOverCancel)
-                        CancelAiming();
-                    else
-                        CastAimedSkill();
+                    var mouse = Mouse.current;
+                    if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                    {
+                        if (IsPointerOverUI())
+                            CancelAiming(); // Clicking button again or any UI = cancel
+                        else
+                            CastAimedSkill();
+                    }
                 }
 
-                // Also cancel on right-click or Escape
-                var mouse = Mouse.current;
-                if ((mouse != null && mouse.rightButton.wasPressedThisFrame) ||
+                var cancelMouse = Mouse.current;
+                if ((cancelMouse != null && cancelMouse.rightButton.wasPressedThisFrame) ||
                     kb.escapeKey.wasPressedThisFrame)
                     CancelAiming();
             }
         }
 
-        private void TryStartAiming(int skillIndex)
+        public void StartAiming(int skillIndex, bool fromButtonClick)
         {
+            if (champion == null || champion.IsDead) return;
             if (skillIndex >= champion.skills.Length) return;
             var skill = champion.skills[skillIndex];
             if (skill == null || !skill.IsReady) return;
             if (champion.currentMana < skill.definition.manaCost) return;
 
-            // Self-buff skills cast immediately
             if (skill.definition.type == SkillType.SelfBuff)
             {
                 champion.UseSkill(skillIndex, transform.forward, Vector3.zero);
@@ -201,9 +247,69 @@ namespace Pathogen
             }
 
             aimingSkillIndex = skillIndex;
+            aimStartedByClick = fromButtonClick;
+            aimStartFrame = Time.frameCount;
 
-            // Champion keeps moving toward current destination while aiming
-            ShowCancelButton();
+            // X cancel button only shown on mobile
+            if (GameBootstrap.IsMobile)
+                ShowCancelButton();
+
+            var def = skill.definition;
+            Vector3 defaultPos = GetSmartAimTarget(def);
+            Vector3 dir = defaultPos - transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
+
+            if (aimIndicator != null)
+            {
+                switch (def.type)
+                {
+                    case SkillType.Projectile:
+                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.range);
+                        break;
+                    case SkillType.Dash:
+                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.dashDistance);
+                        break;
+                    case SkillType.AreaOfEffect:
+                        var aoePos = transform.position + Vector3.ClampMagnitude(dir, def.range);
+                        aoePos.y = 0.05f;
+                        aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
+                        break;
+                }
+            }
+        }
+
+        private Vector3 GetSmartAimTarget(SkillDefinition def)
+        {
+            Vector3 fallback = transform.position + transform.forward * def.range * 0.5f;
+            if (GameManager.Instance == null) return fallback;
+
+            Team enemyTeam = champion.team == Team.Virus ? Team.Immune : Team.Virus;
+            var enemiesInRange = GameManager.Instance.GetEntitiesInRange(transform.position, def.range, enemyTeam);
+
+            if (enemiesInRange.Count == 0) return fallback;
+            if (enemiesInRange.Count == 1 && !enemiesInRange[0].IsDead)
+                return enemiesInRange[0].transform.position;
+
+            Entity nearestChampion = null;
+            Entity nearestMinion = null;
+            float closestChampDist = float.MaxValue;
+            float closestMinionDist = float.MaxValue;
+
+            foreach (var enemy in enemiesInRange)
+            {
+                if (enemy.IsDead) continue;
+                float dist = (enemy.transform.position - transform.position).sqrMagnitude;
+
+                if (enemy.entityType == EntityType.Champion && dist < closestChampDist)
+                    { closestChampDist = dist; nearestChampion = enemy; }
+                else if (enemy.entityType == EntityType.Minion && dist < closestMinionDist)
+                    { closestMinionDist = dist; nearestMinion = enemy; }
+            }
+
+            if (nearestChampion != null) return nearestChampion.transform.position;
+            if (nearestMinion != null) return nearestMinion.transform.position;
+            return fallback;
         }
 
         private void UpdateAimIndicator()
@@ -243,23 +349,37 @@ namespace Pathogen
             // Don't rotate champion during aiming — let movement rotation handle facing
         }
 
+        /// <summary>Desktop only — fires skill toward current mouse position.</summary>
         private void CastAimedSkill()
         {
             var mouse = Mouse.current;
             if (mouse == null) { CancelAiming(); return; }
 
+            var def = champion.skills[aimingSkillIndex].definition;
+
             Vector3 mouseWorld = GetMouseWorldPosition(mouse.position.ReadValue());
             Vector3 direction = mouseWorld - transform.position;
             direction.y = 0f;
+            if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
 
-            if (direction.sqrMagnitude < 0.01f)
-                direction = transform.forward;
+            if (def.faceSkillDirection)
+                transform.rotation = Quaternion.LookRotation(direction.normalized);
 
-            champion.UseSkill(aimingSkillIndex, direction.normalized, mouseWorld);
+            champion.UseSkill(aimingSkillIndex, direction.normalized, Vector3.zero);
+
+            if (def.rootOnFire)
+            {
+                isMovingToTarget = false;
+                isChasing = false;
+            }
+
+            // Prevent the fire-click from also being consumed as a move command
+            skillFiredThisFrame = true;
+
             CancelAiming();
         }
 
-        private void CancelAiming()
+        public void CancelAiming()
         {
             aimingSkillIndex = -1;
             mouseOverCancel = false;
@@ -268,52 +388,55 @@ namespace Pathogen
             HideCancelButton();
         }
 
-        /// <summary>
-        /// Called by mobile skill buttons. Enters aiming mode for aim skills,
-        /// or instant-casts self-buffs.
-        /// </summary>
-        public void OnSkillButtonPressed(int skillIndex)
+        // ─── MOBILE SKILL INTERACTION ────────────────────────────────────
+
+
+        /// <summary>Mobile drag — direction comes from skill button joystick offset.</summary>
+        public void OnMobileSkillAimUpdate(Vector3 aimDirection)
         {
-            if (champion == null || champion.IsDead) return;
+            if (aimingSkillIndex < 0 || aimIndicator == null) return;
 
-            if (skillIndex >= champion.skills.Length) return;
-            var skill = champion.skills[skillIndex];
-            if (skill == null || !skill.IsReady) return;
+            var def = champion.skills[aimingSkillIndex].definition;
 
-            if (skill.definition.type == SkillType.SelfBuff)
+            switch (def.type)
             {
-                champion.UseSkill(skillIndex, transform.forward, Vector3.zero);
-                return;
+                case SkillType.Projectile:
+                    aimIndicator.ShowDirectionLine(transform.position, aimDirection, def.range);
+                    break;
+                case SkillType.Dash:
+                    aimIndicator.ShowDirectionLine(transform.position, aimDirection, def.dashDistance);
+                    break;
+                case SkillType.AreaOfEffect:
+                    var aoePos = transform.position + aimDirection * def.range;
+                    aoePos.y = 0.05f;
+                    aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
+                    break;
             }
-
-            // Enter aiming mode on mobile too
-            TryStartAiming(skillIndex);
         }
 
-        /// <summary>
-        /// Called when mobile skill aiming touch ends (finger released).
-        /// If the touch position is over the cancel button, cancel. Otherwise cast.
-        /// </summary>
-        public void OnMobileSkillRelease(Vector2 screenPosition)
+        /// <summary>Mobile release — Vector3.zero means quick tap (smart target).</summary>
+        public void OnMobileSkillAimRelease(Vector3 aimDirection)
         {
             if (aimingSkillIndex < 0) return;
 
-            if (IsTouchOverCancelButton(screenPosition))
+            var def = champion.skills[aimingSkillIndex].definition;
+            Vector3 direction;
+
+            if (aimDirection.sqrMagnitude > 0.01f)
             {
-                CancelAiming();
+                direction = aimDirection;
             }
             else
             {
-                // Aim toward touch position
-                Vector3 worldPos = GetMouseWorldPosition(screenPosition);
-                Vector3 direction = worldPos - transform.position;
+                // Quick tap — smart target
+                Vector3 targetPos = GetSmartAimTarget(def);
+                direction = targetPos - transform.position;
                 direction.y = 0f;
-                if (direction.sqrMagnitude < 0.01f)
-                    direction = transform.forward;
-
-                champion.UseSkill(aimingSkillIndex, direction.normalized, worldPos);
-                CancelAiming();
+                if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
             }
+
+            champion.UseSkill(aimingSkillIndex, direction.normalized, Vector3.zero);
+            CancelAiming();
         }
 
         // ─── CANCEL BUTTON (X) ──────────────────────────────────────────
@@ -324,23 +447,23 @@ namespace Pathogen
             var canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null) return;
 
-            cancelButtonGO = new GameObject("AimCancelButton", typeof(RectTransform));
-            cancelButtonGO.transform.SetParent(canvas.transform, false);
+            skillCancelButton = new GameObject("AimCancelButton", typeof(RectTransform));
+            skillCancelButton.transform.SetParent(canvas.transform, false);
 
-            cancelButtonRT = cancelButtonGO.GetComponent<RectTransform>();
+            skillCancelButtonRect = skillCancelButton.GetComponent<RectTransform>();
             // Positioned above the skill buttons (bottom-right)
-            cancelButtonRT.anchorMin = new Vector2(1f, 0f);
-            cancelButtonRT.anchorMax = new Vector2(1f, 0f);
-            cancelButtonRT.anchoredPosition = new Vector2(-140f, 95f);
-            cancelButtonRT.sizeDelta = new Vector2(50f, 50f);
-            cancelButtonRT.pivot = new Vector2(0.5f, 0.5f);
+            skillCancelButtonRect.anchorMin = new Vector2(1f, 0f);
+            skillCancelButtonRect.anchorMax = new Vector2(1f, 0f);
+            skillCancelButtonRect.anchoredPosition = new Vector2(-140f, 95f);
+            skillCancelButtonRect.sizeDelta = new Vector2(50f, 50f);
+            skillCancelButtonRect.pivot = new Vector2(0.5f, 0.5f);
 
-            var bgImage = cancelButtonGO.AddComponent<Image>();
+            var bgImage = skillCancelButton.AddComponent<Image>();
             bgImage.color = new Color(0.6f, 0.1f, 0.1f, 0.85f);
 
             // X label
             var labelGO = new GameObject("XLabel", typeof(RectTransform));
-            labelGO.transform.SetParent(cancelButtonGO.transform, false);
+            labelGO.transform.SetParent(skillCancelButton.transform, false);
             var labelRT = labelGO.GetComponent<RectTransform>();
             labelRT.anchorMin = Vector2.zero;
             labelRT.anchorMax = Vector2.one;
@@ -354,40 +477,45 @@ namespace Pathogen
             label.alignment = TextAnchor.MiddleCenter;
             label.font = GameBootstrap.UIFont;
 
-            cancelButtonGO.SetActive(false);
+            skillCancelButton.SetActive(false);
         }
 
         private void ShowCancelButton()
         {
-            if (cancelButtonGO != null)
-                cancelButtonGO.SetActive(true);
+            if (skillCancelButton != null)
+                skillCancelButton.SetActive(true);
         }
 
         private void HideCancelButton()
         {
-            if (cancelButtonGO != null)
-                cancelButtonGO.SetActive(false);
+            if (skillCancelButton != null)
+                skillCancelButton.SetActive(false);
             mouseOverCancel = false;
         }
 
         private void UpdateCancelButtonHover()
         {
-            // Check if mouse is hovering over the cancel button
-            if (cancelButtonRT == null) return;
+            if (skillCancelButtonRect == null || skillCancelButton == null) return;
 
             var mouse = Mouse.current;
             if (mouse == null) return;
 
             Vector2 screenPos = mouse.position.ReadValue();
             mouseOverCancel = RectTransformUtility.RectangleContainsScreenPoint(
-                cancelButtonRT, screenPos, null);
+                skillCancelButtonRect, screenPos, null);
+
+            var img = skillCancelButton.GetComponent<Image>();
+            if (img != null)
+                img.color = mouseOverCancel
+                    ? new Color(1f, 0.2f, 0.2f, 1f)
+                    : new Color(0.6f, 0.1f, 0.1f, 0.85f);
         }
 
-        private bool IsTouchOverCancelButton(Vector2 screenPosition)
+        public bool IsTouchOverCancelButton(Vector2 screenPosition)
         {
-            if (cancelButtonRT == null) return false;
+            if (skillCancelButtonRect == null) return false;
             return RectTransformUtility.RectangleContainsScreenPoint(
-                cancelButtonRT, screenPosition, null);
+                skillCancelButtonRect, screenPosition, null);
         }
 
         // ─── ATTACK TARGET CIRCLE ────────────────────────────────────────
@@ -425,6 +553,220 @@ namespace Pathogen
             }
         }
 
+        // ─── RANGE INDICATOR ─────────────────────────────────────────────
+
+        private void CreateRangeIndicator()
+        {
+            rangeIndicator = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            rangeIndicator.name = "RangeIndicator";
+            rangeIndicator.transform.localScale = new Vector3(1f, 0.01f, 1f);
+            DestroyImmediate(rangeIndicator.GetComponent<CapsuleCollider>());
+
+            rangeIndicatorRenderer = rangeIndicator.GetComponent<Renderer>();
+            rangeIndicatorRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            rangeIndicatorRenderer.material.color = rangeInRange;
+            rangeIndicatorRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            rangeIndicator.SetActive(false);
+        }
+
+        public void ShowAttackRange(bool show)
+        {
+            if (rangeIndicator == null || champion == null) return;
+
+            if (show)
+            {
+                float range = champion.attackRange * 2f;
+                rangeIndicator.transform.localScale = new Vector3(range, 0.01f, range);
+                rangeIndicator.SetActive(true);
+                UpdateRangeIndicatorColor();
+            }
+            else
+            {
+                rangeIndicator.SetActive(false);
+                HideCrosshair();
+            }
+        }
+
+        private void UpdateRangeIndicatorColor()
+        {
+            if (rangeIndicator == null || !rangeIndicator.activeSelf) return;
+
+            rangeIndicator.transform.position = new Vector3(
+                transform.position.x, 0.02f, transform.position.z);
+
+            bool hasTarget = GameManager.Instance != null &&
+                GameManager.Instance.GetNearestEnemy(
+                    transform.position, champion.attackRange, champion.team) != null;
+
+            rangeIndicatorRenderer.material.color = hasTarget ? rangeInRange : rangeOutOfRange;
+        }
+
+        // ─── CROSSHAIR INDICATOR ─────────────────────────────────────────
+
+        private void CreateCrosshairIndicator()
+        {
+            crosshairIndicator = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            crosshairIndicator.name = "CrosshairIndicator";
+            crosshairIndicator.transform.localScale = new Vector3(2.2f, 0.02f, 2.2f);
+            DestroyImmediate(crosshairIndicator.GetComponent<CapsuleCollider>());
+
+            var renderer = crosshairIndicator.GetComponent<Renderer>();
+            renderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            renderer.material.color = new Color(1f, 0.3f, 0.3f, 0.6f);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            crosshairIndicator.SetActive(false);
+        }
+
+        private void ShowCrosshair(Entity target)
+        {
+            if (crosshairIndicator == null) return;
+
+            if (target != null && !target.IsDead)
+            {
+                crosshairIndicator.SetActive(true);
+                crosshairIndicator.transform.position = new Vector3(
+                    target.transform.position.x, 0.04f, target.transform.position.z);
+            }
+            else
+            {
+                crosshairIndicator.SetActive(false);
+            }
+        }
+
+        private void HideCrosshair()
+        {
+            if (crosshairIndicator != null)
+                crosshairIndicator.SetActive(false);
+        }
+
+        // ─── ATTACK BUTTONS (mobile) ────────────────────────────────────
+
+        public void OnAttackButtonAutoTarget(AttackTargetType targetType)
+        {
+            if (champion == null || champion.IsDead) return;
+            if (GameManager.Instance == null) return;
+
+            activeAttackTargetType = targetType;
+            Entity target = FindNearestOfType(targetType, true);
+            if (target == null) return;
+
+            attackTarget = target;
+            attackButtonTarget = target;
+            isChasing = true;
+            isMovingToTarget = false;
+        }
+
+        public void OnAttackButtonAim(AttackTargetType targetType, Vector3 aimDirection)
+        {
+            if (champion == null || champion.IsDead) return;
+            if (GameManager.Instance == null) return;
+
+            Entity best = FindNearestInDirection(targetType, aimDirection);
+            attackButtonTarget = best;
+            ShowCrosshair(best);
+
+            if (best == null)
+            {
+                attackTarget = null;
+                isChasing = false;
+                activeAttackTargetType = null;
+            }
+
+            UpdateRangeIndicatorColor();
+        }
+
+        public void OnAttackButtonFire(AttackTargetType targetType, Vector3 aimDirection)
+        {
+            if (champion == null || champion.IsDead) return;
+
+            HideCrosshair();
+
+            Entity target = FindNearestInDirection(targetType, aimDirection);
+            if (target == null) return;
+
+            activeAttackTargetType = targetType;
+            attackTarget = target;
+            attackButtonTarget = target;
+            isChasing = true;
+            isMovingToTarget = false;
+        }
+
+        private Entity FindNearestOfType(AttackTargetType targetType, bool fallbackToAny = false)
+        {
+            Team enemyTeam = champion.team == Team.Virus ? Team.Immune : Team.Virus;
+            var enemies = GameManager.Instance.GetEntitiesInRange(
+                transform.position, champion.sightRange, enemyTeam);
+
+            EntityType filter = TargetTypeToEntityType(targetType);
+            Entity nearest = null;
+            Entity nearestAny = null;
+            float closestDist = float.MaxValue;
+            float closestAnyDist = float.MaxValue;
+
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsDead) continue;
+                float dist = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (enemy.entityType == filter && dist < closestDist)
+                {
+                    closestDist = dist;
+                    nearest = enemy;
+                }
+                if (fallbackToAny && dist < closestAnyDist)
+                {
+                    closestAnyDist = dist;
+                    nearestAny = enemy;
+                }
+            }
+            return nearest != null ? nearest : nearestAny;
+        }
+
+        private Entity FindNearestInDirection(AttackTargetType targetType, Vector3 aimDirection,
+            bool fallbackToAny = false)
+        {
+            Team enemyTeam = champion.team == Team.Virus ? Team.Immune : Team.Virus;
+            var enemies = GameManager.Instance.GetEntitiesInRange(
+                transform.position, champion.sightRange, enemyTeam);
+
+            EntityType filter = TargetTypeToEntityType(targetType);
+            Entity best = null;
+            Entity bestAny = null;
+            float bestScore = -1f;
+            float bestAnyScore = -1f;
+
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsDead) continue;
+                Vector3 toEnemy = (enemy.transform.position - transform.position).normalized;
+                toEnemy.y = 0f;
+                float dot = Vector3.Dot(aimDirection, toEnemy);
+                if (enemy.entityType == filter && dot > bestScore)
+                {
+                    bestScore = dot;
+                    best = enemy;
+                }
+                if (fallbackToAny && dot > bestAnyScore)
+                {
+                    bestAnyScore = dot;
+                    bestAny = enemy;
+                }
+            }
+            return best != null ? best : bestAny;
+        }
+
+        private static EntityType TargetTypeToEntityType(AttackTargetType targetType)
+        {
+            switch (targetType)
+            {
+                case AttackTargetType.Minion: return EntityType.Minion;
+                case AttackTargetType.Champion: return EntityType.Champion;
+                case AttackTargetType.Structure: return EntityType.Structure;
+                default: return EntityType.Minion;
+            }
+        }
+
         // ─── MOUSE COMMANDS (MOVE / ATTACK) ─────────────────────────────
 
         private bool IsPointerOverUI()
@@ -436,6 +778,7 @@ namespace Pathogen
         private void HandleMouseCommands()
         {
             if (IsPointerOverUI()) return;
+            if (skillFiredThisFrame) return;
 
             var mouse = Mouse.current;
             if (mouse == null) return;
@@ -518,23 +861,54 @@ namespace Pathogen
 
         private void ExecuteAutoAttack()
         {
-            if (!champion.CanAttack()) return;
+            // Check if current target is gone (dead or destroyed)
+            bool targetLost = attackTarget == null || attackTarget.IsDead;
 
-            if (isChasing && attackTarget != null && !attackTarget.IsDead)
+            if (isChasing && !targetLost)
             {
-                float dist = Vector3.Distance(transform.position, attackTarget.transform.position);
-                if (dist <= champion.attackRange)
+                // Re-evaluate: if chasing a fallback target, switch to preferred type when nearby
+                if (activeAttackTargetType.HasValue)
                 {
-                    champion.PerformAutoAttack(attackTarget);
-                    FaceTarget(attackTarget.transform.position);
+                    EntityType preferred = TargetTypeToEntityType(activeAttackTargetType.Value);
+                    if (attackTarget.entityType != preferred)
+                    {
+                        Entity better = FindNearestOfType(activeAttackTargetType.Value);
+                        if (better != null)
+                        {
+                            attackTarget = better;
+                            attackButtonTarget = better;
+                        }
+                    }
+                }
+
+                if (champion.CanAttack())
+                {
+                    float dist = Vector3.Distance(transform.position, attackTarget.transform.position);
+                    if (dist <= champion.attackRange)
+                    {
+                        champion.PerformAutoAttack(attackTarget);
+                        FaceTarget(attackTarget.transform.position);
+                    }
                 }
                 return;
             }
 
-            if (attackTarget != null && (attackTarget.IsDead || attackTarget == null))
+            // Auto-retarget: target died or was destroyed — find next visible enemy
+            if (isChasing && targetLost)
             {
                 attackTarget = null;
                 isChasing = false;
+
+                if (GameManager.Instance != null && champion != null)
+                {
+                    var next = GameManager.Instance.GetNearestEnemy(
+                        transform.position, champion.sightRange, champion.team);
+                    if (next != null)
+                    {
+                        attackTarget = next;
+                        isChasing = true;
+                    }
+                }
             }
         }
 

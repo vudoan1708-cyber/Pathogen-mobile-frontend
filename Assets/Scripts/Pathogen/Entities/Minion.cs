@@ -4,10 +4,11 @@ namespace Pathogen
 {
     /// <summary>
     /// Lane minion with LoL-style aggro rules:
-    /// - Prioritizes enemy minions first, then structures
-    /// - Attacks enemy champions only if they're the first thing encountered
+    /// - Prioritizes enemy minions first, then structures, then champions
+    /// - Aggros on first enemy in sight range
     /// - If chasing a champion and can't attack for 2s, drops aggro and resumes lane
-    /// - Re-aggros on a champion only if that champion hits an allied champion nearby
+    /// - Re-aggros on a champion if that champion hits an allied champion nearby
+    /// - Stays on-lane (Z clamped to prevent diagonal drift)
     /// </summary>
     public class Minion : Entity
     {
@@ -23,12 +24,13 @@ namespace Pathogen
         [Header("Spacing")]
         public float separationRadius = 1.2f;
         public float separationForce = 2f;
+        public float laneZClamp = 3f; // Max Z drift from lane center (Z=0)
 
         private Entity aggroTarget;
         private bool initialized;
         private float championAggroTimer;
         private bool aggroLockedOnChampion;
-        private Vector3 combatOffset; // Unique offset so minions don't stack
+        private Vector3 combatOffset;
 
         protected override void Awake()
         {
@@ -57,20 +59,27 @@ namespace Pathogen
                 HandleCombat();
             else
                 FollowWaypoints();
+
+            ClampToLane();
         }
 
         private void UpdateAggro()
         {
             if (GameManager.Instance == null) return;
 
-            // Drop dead or destroyed targets
+            // Drop dead or destroyed targets — immediately scan for next
             if (aggroTarget != null && (aggroTarget.IsDead || aggroTarget == null))
             {
                 aggroTarget = null;
                 aggroLockedOnChampion = false;
+                // Immediately try to find the next target in sight
+                aggroTarget = FindPriorityTarget();
+                if (aggroTarget != null)
+                    AssignCombatOffset();
+                return;
             }
 
-            // Champion leash: if locked on a champion and can't reach them for 2s, drop aggro
+            // Champion leash: can't reach for 2s → drop aggro
             if (aggroLockedOnChampion && aggroTarget != null)
             {
                 float dist = Vector3.Distance(transform.position, aggroTarget.transform.position);
@@ -85,12 +94,12 @@ namespace Pathogen
                 }
                 else
                 {
-                    championAggroTimer = 0f; // Reset timer when in attack range
+                    championAggroTimer = 0f;
                 }
-                return; // Don't re-scan while locked on champion
+                return;
             }
 
-            // Scan for targets with priority: minions > structures > champions
+            // No target — scan for enemies
             if (aggroTarget == null)
             {
                 aggroTarget = FindPriorityTarget();
@@ -131,7 +140,6 @@ namespace Pathogen
                 }
             }
 
-            // Priority: minions first, then structures, then champions
             if (bestMinion != null) return bestMinion;
             if (bestStructure != null) return bestStructure;
 
@@ -145,10 +153,6 @@ namespace Pathogen
             return null;
         }
 
-        /// <summary>
-        /// Called by GameManager when an enemy champion hits an allied champion nearby.
-        /// Forces this minion to switch aggro to that enemy champion.
-        /// </summary>
         public void OnAllyChampionAttacked(Entity enemyChampion)
         {
             if (IsDead || enemyChampion == null || enemyChampion.IsDead) return;
@@ -160,11 +164,11 @@ namespace Pathogen
             aggroTarget = enemyChampion;
             aggroLockedOnChampion = true;
             championAggroTimer = 0f;
+            AssignCombatOffset();
         }
 
         private void HandleCombat()
         {
-            // Move toward target position + unique offset to avoid stacking
             Vector3 targetPos = aggroTarget.transform.position + combatOffset;
             float dist = Vector3.Distance(transform.position, aggroTarget.transform.position);
 
@@ -193,23 +197,28 @@ namespace Pathogen
                 if (e == this || e.entityType != EntityType.Minion) continue;
                 Vector3 away = transform.position - e.transform.position;
                 away.y = 0f;
-                float dist = away.magnitude;
-                if (dist < 0.01f)
-                    away = new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f));
+                float d = away.magnitude;
+                if (d < 0.01f)
+                    away = new Vector3(Random.Range(-1f, 1f), 0f, 0f); // Push along X only
                 else
-                    away /= dist; // normalize
-                push += away * (1f - dist / separationRadius);
+                    away /= d;
+                push += away * (1f - d / separationRadius);
             }
 
             if (push.sqrMagnitude > 0.01f)
+            {
+                // Mostly push along X (lane axis), minimal Z to stay on-lane
+                push.z *= 0.3f;
                 transform.position += push.normalized * separationForce * Time.deltaTime;
+            }
         }
 
         private void AssignCombatOffset()
         {
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float radius = Random.Range(1.5f, 2.5f);
-            combatOffset = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            // Offset along X (lane axis), minimal Z to prevent diagonal drift
+            float xOffset = Random.Range(-2f, 2f);
+            float zOffset = Random.Range(-0.5f, 0.5f);
+            combatOffset = new Vector3(xOffset, 0f, zOffset);
         }
 
         private void FollowWaypoints()
@@ -225,6 +234,16 @@ namespace Pathogen
                 if (currentWaypointIndex >= waypoints.Length)
                     currentWaypointIndex = waypoints.Length - 1;
             }
+        }
+
+        /// <summary>
+        /// Prevent minions from drifting too far off the lane center (Z=0).
+        /// </summary>
+        private void ClampToLane()
+        {
+            var pos = transform.position;
+            pos.z = Mathf.Clamp(pos.z, -laneZClamp, laneZClamp);
+            transform.position = pos;
         }
 
         private void MoveToward(Vector3 target)

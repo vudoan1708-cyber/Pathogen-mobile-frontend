@@ -14,9 +14,6 @@ namespace Pathogen
         public Champion playerChampion;
 
         [Header("UI Elements")]
-        public Image healthBarFill;
-        public Image manaBarFill;
-        public Text levelText;
         public Text bioCurrencyText;
         public Text humanHealthText;
         public Image humanHealthFill;
@@ -27,6 +24,8 @@ namespace Pathogen
         public Text gameOverText;
         public GameObject gameOverPanel;
         public Button cameraModeButton;
+        public Text respawnCountdownText;
+        public GameObject respawnPanel;
 
         // Skill button colors
         private readonly Color readyColor = new Color(0.3f, 0.8f, 0.3f);
@@ -41,10 +40,9 @@ namespace Pathogen
 
             if (playerChampion != null)
             {
-                playerChampion.OnHealthChanged += UpdateHealthBar;
-                playerChampion.OnManaChanged += UpdateManaBar;
-                playerChampion.OnLevelUp += UpdateLevel;
                 playerChampion.OnBioCurrencyChanged += UpdateBioCurrency;
+                playerChampion.OnRespawnTimerChanged += ShowRespawnCountdown;
+                playerChampion.OnRespawn += OnPlayerRespawn;
             }
 
             if (GameManager.Instance != null)
@@ -54,14 +52,8 @@ namespace Pathogen
             }
 
             // Skill buttons
-            if (skillButtons != null)
-            {
-                for (int i = 0; i < skillButtons.Length; i++)
-                {
-                    int index = i;
-                    skillButtons[i].onClick.AddListener(() => OnSkillPressed(index));
-                }
-            }
+            // Skill button interactions are handled by SkillButton component (tap, hold+drag)
+            // which works for mouse, touch, and any input device
 
             // Shop button
             if (shopButton != null)
@@ -75,8 +67,9 @@ namespace Pathogen
                 shopPanel.SetActive(false);
             if (gameOverPanel != null)
                 gameOverPanel.SetActive(false);
+            if (respawnPanel != null)
+                respawnPanel.SetActive(false);
 
-            // Initial UI update
             UpdateAll();
         }
 
@@ -99,30 +92,9 @@ namespace Pathogen
         private void UpdateAll()
         {
             if (playerChampion == null) return;
-            UpdateHealthBar(playerChampion.currentHealth, playerChampion.maxHealth);
-            UpdateManaBar(playerChampion.currentMana, playerChampion.maxMana);
-            UpdateLevel(playerChampion.level);
             UpdateBioCurrency(playerChampion.bioCurrency);
             if (GameManager.Instance != null)
                 UpdateHumanHealth(GameManager.Instance.HumanHealth);
-        }
-
-        private void UpdateHealthBar(float current, float max)
-        {
-            if (healthBarFill != null)
-                healthBarFill.fillAmount = current / max;
-        }
-
-        private void UpdateManaBar(float current, float max)
-        {
-            if (manaBarFill != null)
-                manaBarFill.fillAmount = current / max;
-        }
-
-        private void UpdateLevel(int level)
-        {
-            if (levelText != null)
-                levelText.text = "Lv." + level;
         }
 
         private void UpdateBioCurrency(float amount)
@@ -184,12 +156,6 @@ namespace Pathogen
             }
         }
 
-        private void OnSkillPressed(int index)
-        {
-            var pc = playerChampion.GetComponent<PlayerController>();
-            if (pc != null)
-                pc.OnSkillButtonPressed(index);
-        }
 
         private void ToggleShop()
         {
@@ -214,6 +180,24 @@ namespace Pathogen
                 else
                     gameOverText.text = "FULL RECOVERY\nIMMUNE VICTORY";
             }
+        }
+
+        private void ShowRespawnCountdown(float remaining)
+        {
+            if (respawnPanel != null)
+                respawnPanel.SetActive(true);
+            if (respawnCountdownText != null)
+                respawnCountdownText.text = $"RESPAWNING IN {Mathf.CeilToInt(remaining)}";
+        }
+
+        private void OnPlayerRespawn()
+        {
+            if (respawnPanel != null)
+                respawnPanel.SetActive(false);
+
+            // Camera auto-moves to base
+            if (cameraController != null)
+                cameraController.Recenter();
         }
     }
 }

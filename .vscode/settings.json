@@ -60,7 +60,7 @@
         "*.asset": "yaml",
         "*.meta": "yaml",
         "*.prefab": "yaml",
-        "*.unity": "yaml",
+        "*.unity": "yaml"
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
@@ -69,5 +69,7 @@
     },
     "dotnet.defaultSolution": "Pathogen.slnx",
     "dotnet.enableWorkspaceBasedDevelopment": false,
-    "dotnet.preferCSharpExtension": true
+    "dotnet.preferCSharpExtension": false,
+    "omnisharp.useModernNet": true,
+    "omnisharp.projectLoadTimeout": 120
 }
