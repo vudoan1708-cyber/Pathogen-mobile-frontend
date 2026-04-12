@@ -203,7 +203,8 @@ namespace Pathogen
 
         private void UpdateTargetHighlight()
         {
-            Entity target = (isChasing || isLockedOn) ? attackTarget : null;
+            Entity target = (isChasing || (isLockedOn && attackTarget != null && !attackTarget.IsDead))
+                ? attackTarget : null;
 
             if (target == currentHighlightedEntity) return;
 

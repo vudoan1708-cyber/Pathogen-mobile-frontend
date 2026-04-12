@@ -208,16 +208,33 @@ namespace Pathogen
             if (champion == null || champion.IsDead) return;
             if (GameManager.Instance == null) return;
 
-            ShowAttackRange(true);
-            isLockedOn = false;
+            FlashAttackRange();
             activeAttackTargetType = targetType;
-            Entity target = FindNearestOfType(targetType, true, AttackChaseRange);
+
+            // Locked target has priority, else find nearest of type
+            Entity target = isLockedOn && attackTarget != null && !attackTarget.IsDead
+                ? attackTarget
+                : FindNearestOfType(targetType, true, AttackChaseRange);
             if (target == null) return;
 
-            attackTarget = target;
-            attackButtonTarget = target;
-            isChasing = true;
-            isMovingToTarget = false;
+            bool isMoving = moveJoystick != null && moveJoystick.IsDragging;
+            float dist = Vector3.Distance(transform.position, target.transform.position);
+
+            if (isMoving)
+            {
+                // Kiting: attack if in range, face target regardless
+                if (dist <= champion.attackRange && champion.CanAttack())
+                    champion.PerformAutoAttack(target);
+                FaceTarget(target.transform.position);
+            }
+            else
+            {
+                // Stationary: chase and attack
+                attackTarget = target;
+                attackButtonTarget = target;
+                isChasing = true;
+                isMovingToTarget = false;
+            }
         }
 
         public override void OnAttackButtonAim(AttackTargetType targetType, Vector3 aimDirection)
