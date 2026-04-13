@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace Pathogen
 {
@@ -10,7 +11,7 @@ namespace Pathogen
         public RectTransform healthTrail;
         public RectTransform manaFill;
         public RectTransform manaTrail;
-        public Text levelText;
+        public TextMeshProUGUI levelText;
         public Image xpRing;
 
         private float healthTarget;

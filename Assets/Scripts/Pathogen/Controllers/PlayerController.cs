@@ -37,8 +37,8 @@ namespace Pathogen
         // Range indicator
         private GameObject rangeIndicator;
         private Renderer rangeIndicatorRenderer;
-        private static readonly Color rangeInRange = new Color(0.3f, 0.6f, 1f, 0.15f);
-        private static readonly Color rangeOutOfRange = new Color(1f, 0.3f, 0.3f, 0.15f);
+        private static readonly Color rangeInRange = new Color(0.3f, 0.5f, 0.8f, 0.25f);
+        private static readonly Color rangeOutOfRange = new Color(1f, 0.3f, 0.3f, 0.3f);
         private float rangeFlashTimer;
         private bool rangeHeldOpen;
 
@@ -117,7 +117,7 @@ namespace Pathogen
                 return;
             }
 
-            FlashAttackRange();
+            ShowAttackRange(true, 0.3f);
             aimingSkillIndex = skillIndex;
         }
 
@@ -139,37 +139,66 @@ namespace Pathogen
         protected Vector3 GetSmartAimTarget(SkillDefinition def)
         {
             if (GameManager.Instance == null)
-                return transform.position + transform.forward * def.range * 0.5f;
+                return transform.position + transform.forward * def.range;
 
             Team enemyTeam = champion.team == Team.Virus ? Team.Immune : Team.Virus;
-            var shared = GameManager.Instance.GetEntitiesInRange(transform.position, def.range, enemyTeam);
+            float searchRange = Mathf.Max(def.range, champion.sightRange);
+            var shared = GameManager.Instance.GetEntitiesInRange(transform.position, searchRange, enemyTeam);
 
             int count = shared.Count;
             if (count == 0)
-                return transform.position + transform.forward * def.range * 0.5f;
+                return transform.position + transform.forward * def.range;
 
             var enemies = new Entity[count];
             shared.CopyTo(enemies);
 
-            Entity nearestChampion = null;
+            float rangeSquared = def.range * def.range;
+
+            // 1. Champion with lowest health in skill range
+            Entity inRangeChamp = null;
+            float inRangeLowestHP = float.MaxValue;
+
+            // 2. Any champion (even out of skill range) — aim towards them
+            Entity anyChamp = null;
+            float anyChampLowestHP = float.MaxValue;
+
+            // 3. Nearest minion
             Entity nearestMinion = null;
-            float closestChampDist = float.MaxValue;
             float closestMinionDist = float.MaxValue;
 
             for (int i = 0; i < count; i++)
             {
                 var enemy = enemies[i];
                 if (enemy == null || enemy.IsDead) continue;
-                float dist = (enemy.transform.position - transform.position).sqrMagnitude;
-                if (enemy.entityType == EntityType.Champion && dist < closestChampDist)
-                    { closestChampDist = dist; nearestChampion = enemy; }
-                if (enemy.entityType == EntityType.Minion && dist < closestMinionDist)
-                    { closestMinionDist = dist; nearestMinion = enemy; }
+
+                float distSq = (enemy.transform.position - transform.position).sqrMagnitude;
+
+                if (enemy.entityType == EntityType.Champion)
+                {
+                    if (distSq <= rangeSquared && enemy.currentHealth < inRangeLowestHP)
+                    {
+                        inRangeLowestHP = enemy.currentHealth;
+                        inRangeChamp = enemy;
+                    }
+                    if (enemy.currentHealth < anyChampLowestHP)
+                    {
+                        anyChampLowestHP = enemy.currentHealth;
+                        anyChamp = enemy;
+                    }
+                }
+                else if (enemy.entityType == EntityType.Minion && distSq < closestMinionDist)
+                {
+                    closestMinionDist = distSq;
+                    nearestMinion = enemy;
+                }
             }
 
-            if (nearestChampion != null) return nearestChampion.transform.position;
+            if (inRangeChamp != null) return inRangeChamp.transform.position;
+            if (anyChamp != null) return anyChamp.transform.position;
             if (nearestMinion != null) return nearestMinion.transform.position;
-            return transform.position + transform.forward * def.range * 0.5f;
+
+            // 4. Facing direction
+            return transform.position + transform.forward * def.range;
         }
 
         // ─── MOBILE SKILL STUBS (overridden by MobilePlayerController) ──
@@ -251,31 +280,39 @@ namespace Pathogen
             rangeIndicator.SetActive(false);
         }
 
-        public void ShowAttackRange(bool show)
+        /// <summary>
+        /// Shows or hides the attack range indicator.
+        /// When timer > 0, the range auto-hides after that duration.
+        /// When timer == 0, the range stays until explicitly hidden with show=false.
+        /// </summary>
+        public void ShowAttackRange(bool show, float timer = 0f)
         {
             if (rangeIndicator == null || champion == null) return;
-            rangeHeldOpen = show;
+
             if (show)
             {
                 float range = champion.attackRange * 2f;
                 rangeIndicator.transform.localScale = new Vector3(range, 0.01f, range);
                 rangeIndicator.SetActive(true);
                 UpdateRangeIndicatorColor();
+
+                if (timer > 0f)
+                {
+                    rangeHeldOpen = false;
+                    rangeFlashTimer = timer;
+                }
+                else
+                {
+                    rangeHeldOpen = true;
+                    rangeFlashTimer = 0f;
+                }
             }
             else
             {
-                if (rangeFlashTimer <= 0f) rangeIndicator.SetActive(false);
+                rangeHeldOpen = false;
+                if (rangeFlashTimer <= 0f)
+                    rangeIndicator.SetActive(false);
             }
-        }
-
-        public void FlashAttackRange()
-        {
-            if (rangeIndicator == null || champion == null) return;
-            float range = champion.attackRange * 2f;
-            rangeIndicator.transform.localScale = new Vector3(range, 0.01f, range);
-            rangeIndicator.SetActive(true);
-            UpdateRangeIndicatorColor();
-            rangeFlashTimer = 0.25f;
         }
 
         private void UpdateRangeFlash()
@@ -294,8 +331,7 @@ namespace Pathogen
             rangeIndicator.transform.position = new Vector3(
                 transform.position.x, 0.02f, transform.position.z);
             bool hasTarget = GameManager.Instance != null &&
-                GameManager.Instance.GetNearestEnemy(
-                    transform.position, champion.attackRange, champion.team) != null;
+                GameManager.Instance.GetNearestEnemy(transform.position, champion.attackRange, champion.team) != null;
             rangeIndicatorRenderer.material.color = hasTarget ? rangeInRange : rangeOutOfRange;
         }
 

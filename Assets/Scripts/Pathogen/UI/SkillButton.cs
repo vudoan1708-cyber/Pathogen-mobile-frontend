@@ -15,6 +15,8 @@ namespace Pathogen
         public PlayerController playerController;
         public float cancelBoundary = 350f;
 
+        private const float DragThresholdSq = 100f; // 10px radius — matches AutoAttackButton
+
         private bool isPressed;
         private bool hasDragged;
         private Vector2 pressPosition;
@@ -44,7 +46,7 @@ namespace Pathogen
             if (!isPressed || !IsMobile) return;
 
             Vector2 offset = eventData.position - pressPosition;
-            if (offset.sqrMagnitude > 1f)
+            if (offset.sqrMagnitude > DragThresholdSq)
             {
                 hasDragged = true;
                 lastAimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
@@ -71,7 +73,7 @@ namespace Pathogen
             }
 
             Vector2 offset = eventData.position - pressPosition;
-            if (offset.sqrMagnitude > 1f)
+            if (offset.sqrMagnitude > DragThresholdSq)
             {
                 Vector3 aimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
                 playerController.OnMobileSkillAimRelease(aimDirection);

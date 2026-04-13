@@ -178,7 +178,7 @@ namespace Pathogen
             if (champion == null || champion.IsDead) return;
             if (GameManager.Instance == null) return;
 
-            FlashAttackRange();
+            ShowAttackRange(true, 0.5f);
             activeAttackTargetType = targetType;
 
             // Locked target has priority, else find nearest of type
@@ -223,9 +223,10 @@ namespace Pathogen
                 true, AttackChaseRange);
             attackButtonTarget = best;
 
+            bool hasTarget = best != null && !best.IsDead;
             if (aimIndicator != null)
             {
-                if (best != null && !best.IsDead)
+                if (hasTarget)
                 {
                     Vector3 toTarget = best.transform.position - transform.position;
                     toTarget.y = 0f;
@@ -237,6 +238,7 @@ namespace Pathogen
                     aimIndicator.ShowDirectionLine(transform.position, aimDirection.normalized,
                         AttackChaseRange * Mathf.Max(reach, 0.1f));
                 }
+                aimIndicator.SetOutOfRange(!hasTarget);
             }
         }
 
@@ -250,7 +252,7 @@ namespace Pathogen
                 aimDirection = new Vector3(-aimDirection.x, 0f, -aimDirection.z);
 
             if (aimIndicator != null) aimIndicator.Hide();
-            ShowAttackRange(true);
+            ShowAttackRange(true, 0.5f);
 
             Entity target = attackButtonTarget;
             if (target == null || target.IsDead)

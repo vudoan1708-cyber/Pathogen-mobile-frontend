@@ -118,20 +118,44 @@ namespace Pathogen
             if (damageFlash != null)
                 damageFlash.Flash();
 
+            // Notify AI controller of hit for disengage logic
+            if (entityType == EntityType.Champion)
+            {
+                var ai = GetComponent<AIController>();
+                if (ai != null) ai.OnHitReceived();
+            }
+
             if (visuals != null)
                 HitEffect.Spawn(transform.position, isMagic, visuals);
 
-            // If an enemy champion hits a champion, alert nearby allied minions
+            // If an enemy champion hits a champion, alert nearby allied minions and nearest structure
             if (entityType == EntityType.Champion && source != null
                 && source.entityType == EntityType.Champion && GameManager.Instance != null)
             {
-                var nearbyAllies = GameManager.Instance.GetEntitiesInRange(transform.position, 10f, team);
+                var nearbyAllies = GameManager.Instance.GetEntitiesInRange(transform.position, 15f, team);
+                Structure nearestStructure = null;
+                float nearestStructDist = float.MaxValue;
+
                 foreach (var ally in nearbyAllies)
                 {
                     var minion = ally as Minion;
                     if (minion != null)
                         minion.OnAllyChampionAttacked(source);
+
+                    var structure = ally as Structure;
+                    if (structure != null)
+                    {
+                        float sDist = (structure.transform.position - source.transform.position).sqrMagnitude;
+                        if (sDist < nearestStructDist)
+                        {
+                            nearestStructDist = sDist;
+                            nearestStructure = structure;
+                        }
+                    }
                 }
+
+                if (nearestStructure != null)
+                    nearestStructure.OnAllyChampionAttackedBy(source);
             }
 
             // Damage reflection

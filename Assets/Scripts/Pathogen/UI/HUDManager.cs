@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using TMPro;
 
 namespace Pathogen
 {
@@ -14,14 +15,14 @@ namespace Pathogen
         public Champion playerChampion;
 
         [Header("UI Elements")]
-        public Text bioCurrencyText;
+        public TextMeshProUGUI bioCurrencyText;
         public Button[] skillButtons;
-        public Text[] skillCooldownTexts;
+        public TextMeshProUGUI[] skillCooldownTexts;
         public Button shopButton;
         public GameObject shopPanel;
-        public Text gameOverText;
+        public TextMeshProUGUI gameOverText;
         public GameObject gameOverPanel;
-        public Text respawnCountdownText;
+        public TextMeshProUGUI respawnCountdownText;
         public GameObject respawnPanel;
 
         // Skill button colors

@@ -14,8 +14,9 @@ namespace Pathogen
         private bool isActive;
 
         [Header("Visuals")]
-        public Color lineColor = new Color(1f, 1f, 0.3f, 0.7f);
-        public Color aoeColor = new Color(1f, 0.4f, 0.2f, 0.3f);
+        public Color lineColor = new Color(0.3f, 0.5f, 0.8f, 0.7f);
+        public Color aoeColor = new Color(0.3f, 0.5f, 0.8f, 0.3f);
+        private static readonly Color outOfRangeColor = new Color(1f, 0.3f, 0.3f, 0.3f);
 
         void Awake()
         {
@@ -114,6 +115,12 @@ namespace Pathogen
             if (aimLine != null) aimLine.material.color = color;
             if (aoeCircle != null) aoeCircle.GetComponent<Renderer>().material.color =
                 cancelling ? cancelColor : aoeColor;
+        }
+
+        public void SetOutOfRange(bool outOfRange)
+        {
+            Color color = outOfRange ? outOfRangeColor : lineColor;
+            if (aimLine != null) aimLine.material.color = color;
         }
 
         public bool IsActive => isActive;

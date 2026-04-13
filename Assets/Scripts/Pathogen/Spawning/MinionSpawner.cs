@@ -18,7 +18,7 @@ namespace Pathogen
         public float meleeSpeed = 2.5f;
         public float meleeArmor = 5f;
         public float meleeAttackRange = 2f;
-        public float meleeAttackSpeed = 0.5f;
+        public float meleeAttackSpeed = 1.25f;
 
         [Header("Ranged Minion Stats")]
         public float rangedHealth = 200f;
@@ -26,7 +26,7 @@ namespace Pathogen
         public float rangedSpeed = 2f;
         public float rangedArmor = 3f;
         public float rangedAttackRange = 7f;
-        public float rangedAttackSpeed = 0.6f;
+        public float rangedAttackSpeed = 1.0f;
 
         [Header("Waypoints")]
         public Vector3[] waypoints;

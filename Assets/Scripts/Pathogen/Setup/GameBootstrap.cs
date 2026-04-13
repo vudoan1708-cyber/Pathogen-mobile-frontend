@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
+using TMPro;
 
 namespace Pathogen
 {
@@ -20,7 +21,7 @@ namespace Pathogen
         /// <summary>
         /// Single font used by all UI text in the game. Created once here at startup.
         /// </summary>
-        public static Font UIFont { get; private set; }
+        public static TMP_FontAsset UIFont { get; private set; }
 #if UNITY_EDITOR
         public static bool IsMobile => UnityEngine.Device.Application.isMobilePlatform;
 #else
@@ -39,7 +40,7 @@ namespace Pathogen
             Screen.autorotateToLandscapeRight = true;
             Screen.orientation = ScreenOrientation.AutoRotation;
 
-            UIFont = Font.CreateDynamicFontFromOSFont("Arial", 14);
+            UIFont = TMP_Settings.defaultFontAsset;
 
             SetupGameManager();
             SetupLighting();
@@ -159,6 +160,7 @@ namespace Pathogen
             structure.attackDamage = damage;
             structure.attackRange = attackRange;
             structure.detectionRange = attackRange + 2f;
+            structure.attackSpeed = 0.88f;
             structure.armor = 40f;
             structure.magicResist = 30f;
 
@@ -463,11 +465,10 @@ namespace Pathogen
             var canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
-            canvas.pixelPerfect = true;
             var scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.matchWidthOrHeight = 1f;
             scaler.referencePixelsPerUnit = 100;
             canvasGO.AddComponent<GraphicRaycaster>();
 
@@ -503,7 +504,7 @@ namespace Pathogen
             // ── Skill Buttons ──
             var skillNames = new string[] { "Q", "W", "E", "R" };
             hud.skillButtons = new Button[4];
-            hud.skillCooldownTexts = new Text[4];
+            hud.skillCooldownTexts = new TextMeshProUGUI[4];
             var playerInputRef = playerChampion.GetComponent<PlayerController>();
 
             float arcCenterX = -(AutoAttackButton.MarginRight + AutoAttackButton.BigButtonSize * 0.5f);
@@ -538,7 +539,7 @@ namespace Pathogen
                 skillBtn.skillIndex = i;
                 skillBtn.playerController = playerInputRef;
 
-                hud.skillCooldownTexts[i] = btnGO.GetComponentInChildren<Text>();
+                hud.skillCooldownTexts[i] = btnGO.GetComponentInChildren<TextMeshProUGUI>();
             }
 
             // ── Shop Button ──
@@ -553,7 +554,7 @@ namespace Pathogen
             // ── Joystick (bottom left, circular) ──
             var joystickBG = CreateUIImage(canvasGO.transform, "JoystickBG",
                 new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110f, 110f),
-                new Vector2(160f, 160f), new Color(1f, 1f, 1f, 0.1f));
+                new Vector2(180f, 180f), new Color(1f, 1f, 1f, 0.1f));
             MakeCircular(joystickBG);
 
             var joystickHandle = CreateUIImage(joystickBG.transform, "JoystickHandle",
@@ -658,6 +659,7 @@ namespace Pathogen
             rpRT.offsetMax = Vector2.zero;
             var rpImg = respawnPanel.AddComponent<Image>();
             rpImg.color = new Color(0f, 0f, 0f, 0.5f);
+            rpImg.raycastTarget = false;
             respawnPanel.SetActive(false);
             hud.respawnPanel = respawnPanel;
 
@@ -665,7 +667,7 @@ namespace Pathogen
             hud.respawnCountdownText = CreateUIText(respawnPanel.transform, "RespawnText",
                 new Vector2(0.5f, 0.55f), new Vector2(0.5f, 0.55f), Vector2.zero,
                 new Vector2(400f, 50f), "", 24, new Color(1f, 0.4f, 0.4f));
-            hud.respawnCountdownText.fontStyle = FontStyle.Bold;
+            hud.respawnCountdownText.fontStyle = FontStyles.Bold;
         }
 
         // ─── UI HELPERS ─────────────────────────────────────────────────
@@ -689,7 +691,7 @@ namespace Pathogen
             return go;
         }
 
-        private Text CreateUIText(Transform parent, string name,
+        private TextMeshProUGUI CreateUIText(Transform parent, string name,
             Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPos,
             Vector2 size, string text, int fontSize, Color color)
         {
@@ -702,13 +704,14 @@ namespace Pathogen
             rt.sizeDelta = size;
             rt.pivot = new Vector2(0.5f, 0.5f);
 
-            var txt = go.AddComponent<Text>();
+            var txt = go.AddComponent<TextMeshProUGUI>();
             txt.text = text;
             txt.fontSize = fontSize;
             txt.color = color;
-            txt.alignment = TextAnchor.MiddleCenter;
+            txt.alignment = TextAlignmentOptions.Center;
             txt.font = GameBootstrap.UIFont;
-            txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+            txt.overflowMode = TextOverflowModes.Overflow;
+            txt.textWrappingMode = TextWrappingModes.NoWrap;
 
             return txt;
         }
@@ -727,8 +730,8 @@ namespace Pathogen
             if (showBorder)
             {
                 var outline = go.AddComponent<Outline>();
-                outline.effectColor = new Color(0f, 0f, 0f, 0.25f);
-                outline.effectDistance = new Vector2(2f, 2f);
+                outline.effectColor = new Color(0.3f, 0.5f, 0.8f, 0.25f);
+                outline.effectDistance = new Vector2(1f, 1f);
             }
 
             go.AddComponent<ButtonPressFeedback>();
@@ -743,7 +746,7 @@ namespace Pathogen
         private void MakeCircular(GameObject go)
         {
             if (circleSprite == null)
-                circleSprite = CreateCircleSprite(64);
+                circleSprite = CreateCircleSprite(256);
 
             var img = go.GetComponent<Image>();
             if (img != null)
@@ -753,15 +756,16 @@ namespace Pathogen
         private static Sprite CreateCircleSprite(int size)
         {
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            float radius = size * 0.5f;
-            Color clear = new Color(0, 0, 0, 0);
+            float center = size * 0.5f;
+            float radius = center - 1f;
 
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(radius, radius));
-                    tex.SetPixel(x, y, dist <= radius ? Color.white : clear);
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float alpha = Mathf.Clamp01(radius - dist + 1f);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
             }
 
@@ -776,18 +780,21 @@ namespace Pathogen
         {
             if (ringSprite != null) return ringSprite;
 
-            int size = 64;
+            int size = 256;
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            float radius = size * 0.5f;
-            float innerRadius = radius - 8f;
-            Color clear = new Color(0, 0, 0, 0);
+            float center = size * 0.5f;
+            float outerRadius = center - 1f;
+            float innerRadius = outerRadius - 8f;
 
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(radius, radius));
-                    tex.SetPixel(x, y, dist <= radius && dist >= innerRadius ? Color.white : clear);
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float outerAlpha = Mathf.Clamp01(outerRadius - dist + 1f);
+                    float innerAlpha = Mathf.Clamp01(dist - innerRadius + 1f);
+                    float alpha = Mathf.Min(outerAlpha, innerAlpha);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
             }
 
@@ -811,7 +818,7 @@ namespace Pathogen
 
             var img = go.AddComponent<Image>();
             img.sprite = GetRingSprite();
-            img.color = Color.white;
+            img.color = new Color(0.3f, 0.5f, 0.8f, 0.4f);
             img.raycastTarget = false;
 
             go.SetActive(false);
@@ -836,8 +843,8 @@ namespace Pathogen
             cg.interactable = false;
 
             // Level circle with XP ring stroke (left side, vertically centered)
-            float lvlSize = 40f;
-            float barWidth = 80f;
+            float lvlSize = 45f;
+            float barWidth = 90f;
             float groupGap = 6f;
             float groupWidth = lvlSize + groupGap + barWidth;
             float groupStartX = -groupWidth * 0.5f;
@@ -847,7 +854,7 @@ namespace Pathogen
                 new Vector2(groupStartX + lvlSize * 0.5f, 0f),
                 new Vector2(lvlSize, lvlSize), new Color(0.1f, 0.1f, 0.15f, 0.8f));
             lvlContainer.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
-            if (circleSprite == null) circleSprite = CreateCircleSprite(64);
+            if (circleSprite == null) circleSprite = CreateCircleSprite(256);
             lvlContainer.GetComponent<Image>().sprite = circleSprite;
 
             var xpRingGO = CreateUIImage(lvlContainer.transform, "XPRing",
@@ -864,12 +871,12 @@ namespace Pathogen
 
             var lvlText = CreateUIText(lvlContainer.transform, "LevelText",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(lvlSize, lvlSize), "1", 23, Color.white);
-            lvlText.fontStyle = FontStyle.Bold;
-            lvlText.alignment = TextAnchor.MiddleCenter;
+                new Vector2(lvlSize, lvlSize), "1", 20, Color.white);
+            lvlText.fontStyle = FontStyles.Bold;
+            lvlText.alignment = TextAlignmentOptions.Center;
 
-            float healthBarHeight = 12f;
-            float manaBarHeight = 12f;
+            float healthBarHeight = 17f;
+            float manaBarHeight = 17f;
             float barGap = 1f;
             float barsTopY = (healthBarHeight + barGap + manaBarHeight) * 0.5f;
             float barsLeftX = groupStartX + lvlSize + groupGap;

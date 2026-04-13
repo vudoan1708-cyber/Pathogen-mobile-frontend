@@ -12,7 +12,7 @@ namespace Pathogen
         private float bounceTimer;
         private bool isPressed;
 
-        private static readonly Color pressedColor = new Color(0.6f, 0.75f, 1f, 0.5f);
+        private static readonly Color pressedColor = new Color(0.3f, 0.5f, 0.8f, 0.45f);
 
         void Awake()
         {

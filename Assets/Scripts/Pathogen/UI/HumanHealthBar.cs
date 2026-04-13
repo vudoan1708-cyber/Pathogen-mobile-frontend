@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace Pathogen
 {
@@ -12,10 +13,10 @@ namespace Pathogen
         [Header("References")]
         public Image gradientFill;
         public Image animatedTrail; // Trails behind the fill to show recent change
-        public Text percentText;
-        public Text conditionText;
-        public Text deathLabel;
-        public Text healthyLabel;
+        public TextMeshProUGUI percentText;
+        public TextMeshProUGUI conditionText;
+        public TextMeshProUGUI deathLabel;
+        public TextMeshProUGUI healthyLabel;
 
         [Header("Animation")]
         public float animSpeed = 2f;

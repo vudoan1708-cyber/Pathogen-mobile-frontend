@@ -72,7 +72,6 @@ namespace Pathogen
             isPressed = false;
 
             HideCrosshair();
-            playerController.ShowAttackRange(false);
 
             if (hasDragged)
             {

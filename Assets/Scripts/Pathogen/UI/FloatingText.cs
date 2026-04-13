@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 
 namespace Pathogen
 {
@@ -9,7 +9,7 @@ namespace Pathogen
     /// </summary>
     public class FloatingText : MonoBehaviour
     {
-        private Text uiText;
+        private TextMeshProUGUI uiText;
         private CanvasGroup canvasGroup;
         private Color startColor;
         private float duration;
@@ -41,14 +41,15 @@ namespace Pathogen
             textRT.anchorMax = Vector2.one;
             textRT.sizeDelta = Vector2.zero;
 
-            var uiText = textGO.AddComponent<Text>();
+            var uiText = textGO.AddComponent<TextMeshProUGUI>();
             uiText.text = text;
             uiText.fontSize = 24;
             uiText.color = color;
-            uiText.alignment = TextAnchor.MiddleCenter;
+            uiText.alignment = TextAlignmentOptions.Center;
             uiText.font = GameBootstrap.UIFont;
-            uiText.fontStyle = FontStyle.Bold;
-            uiText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            uiText.fontStyle = FontStyles.Bold;
+            uiText.textWrappingMode = TextWrappingModes.NoWrap;
+            uiText.overflowMode = TextOverflowModes.Overflow;
 
             // FloatingText behaviour
             var ft = go.AddComponent<FloatingText>();

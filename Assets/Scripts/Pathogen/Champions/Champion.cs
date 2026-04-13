@@ -54,6 +54,8 @@ namespace Pathogen
         public Vector3 spawnPoint;
         public bool isRespawning;
 
+        private Color originalColor;
+
         // Events
         public event Action<int> OnLevelUp;
         public event Action<float> OnBioCurrencyChanged;
@@ -66,6 +68,9 @@ namespace Pathogen
             base.Awake();
             entityType = EntityType.Champion;
             currentMana = maxMana;
+
+            var r = GetComponent<Renderer>();
+            if (r != null) originalColor = r.material.color;
         }
 
         protected override void Update()
@@ -365,7 +370,9 @@ namespace Pathogen
             respawnTimer = respawnTime + (level * 0.5f);
             lastRespawnSecond = -1;
 
-            GetComponent<Renderer>().enabled = false;
+            var deathRenderer = GetComponent<Renderer>();
+            if (deathRenderer != null)
+                deathRenderer.material.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
             GetComponent<Collider>().enabled = false;
         }
 
@@ -405,7 +412,8 @@ namespace Pathogen
             attackCooldown = 0f;
 
             // Show champion
-            GetComponent<Renderer>().enabled = true;
+            var r = GetComponent<Renderer>();
+            if (r != null) r.material.color = originalColor;
             GetComponent<Collider>().enabled = true;
 
             InvokeHealthChanged();
