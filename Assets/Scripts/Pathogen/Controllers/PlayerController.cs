@@ -124,39 +124,52 @@ namespace Pathogen
         public virtual void CancelAiming()
         {
             aimingSkillIndex = -1;
-            if (aimIndicator != null) aimIndicator.Hide();
+            if (aimIndicator != null)
+            {
+                aimIndicator.SetCancelTint(false);
+                aimIndicator.Hide();
+            }
+        }
+
+        public void SetAimCancelTint(bool cancelling)
+        {
+            if (aimIndicator != null) aimIndicator.SetCancelTint(cancelling);
         }
 
         protected Vector3 GetSmartAimTarget(SkillDefinition def)
         {
-            Vector3 fallback = transform.position + transform.forward * def.range * 0.5f;
-            if (GameManager.Instance == null) return fallback;
+            if (GameManager.Instance == null)
+                return transform.position + transform.forward * def.range * 0.5f;
 
             Team enemyTeam = champion.team == Team.Virus ? Team.Immune : Team.Virus;
-            var enemies = GameManager.Instance.GetEntitiesInRange(transform.position, def.range, enemyTeam);
+            var shared = GameManager.Instance.GetEntitiesInRange(transform.position, def.range, enemyTeam);
 
-            if (enemies.Count == 0) return fallback;
-            if (enemies.Count == 1 && !enemies[0].IsDead)
-                return enemies[0].transform.position;
+            int count = shared.Count;
+            if (count == 0)
+                return transform.position + transform.forward * def.range * 0.5f;
+
+            var enemies = new Entity[count];
+            shared.CopyTo(enemies);
 
             Entity nearestChampion = null;
             Entity nearestMinion = null;
             float closestChampDist = float.MaxValue;
             float closestMinionDist = float.MaxValue;
 
-            foreach (var enemy in enemies)
+            for (int i = 0; i < count; i++)
             {
-                if (enemy.IsDead) continue;
+                var enemy = enemies[i];
+                if (enemy == null || enemy.IsDead) continue;
                 float dist = (enemy.transform.position - transform.position).sqrMagnitude;
                 if (enemy.entityType == EntityType.Champion && dist < closestChampDist)
                     { closestChampDist = dist; nearestChampion = enemy; }
-                else if (enemy.entityType == EntityType.Minion && dist < closestMinionDist)
+                if (enemy.entityType == EntityType.Minion && dist < closestMinionDist)
                     { closestMinionDist = dist; nearestMinion = enemy; }
             }
 
             if (nearestChampion != null) return nearestChampion.transform.position;
             if (nearestMinion != null) return nearestMinion.transform.position;
-            return fallback;
+            return transform.position + transform.forward * def.range * 0.5f;
         }
 
         // ─── MOBILE SKILL STUBS (overridden by MobilePlayerController) ──

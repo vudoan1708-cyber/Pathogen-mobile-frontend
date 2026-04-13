@@ -106,6 +106,16 @@ namespace Pathogen
             if (aoeCircle != null) Destroy(aoeCircle);
         }
 
+        private static readonly Color cancelColor = new Color(1f, 0.2f, 0.2f, 0.3f);
+
+        public void SetCancelTint(bool cancelling)
+        {
+            Color color = cancelling ? cancelColor : lineColor;
+            if (aimLine != null) aimLine.material.color = color;
+            if (aoeCircle != null) aoeCircle.GetComponent<Renderer>().material.color =
+                cancelling ? cancelColor : aoeColor;
+        }
+
         public bool IsActive => isActive;
     }
 }

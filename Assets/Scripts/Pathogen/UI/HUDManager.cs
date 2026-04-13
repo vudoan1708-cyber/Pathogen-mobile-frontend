@@ -15,8 +15,6 @@ namespace Pathogen
 
         [Header("UI Elements")]
         public Text bioCurrencyText;
-        public Text humanHealthText;
-        public Image humanHealthFill;
         public Button[] skillButtons;
         public Text[] skillCooldownTexts;
         public Button shopButton;
@@ -46,7 +44,6 @@ namespace Pathogen
 
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.OnHumanHealthChanged += UpdateHumanHealth;
                 GameManager.Instance.OnGameOver += ShowGameOver;
             }
 
@@ -86,35 +83,12 @@ namespace Pathogen
         {
             if (playerChampion == null) return;
             UpdateBioCurrency(playerChampion.bioCurrency);
-            if (GameManager.Instance != null)
-                UpdateHumanHealth(GameManager.Instance.HumanHealth);
         }
 
         private void UpdateBioCurrency(float amount)
         {
             if (bioCurrencyText != null)
                 bioCurrencyText.text = Mathf.FloorToInt(amount).ToString();
-        }
-
-        private void UpdateHumanHealth(float health)
-        {
-            if (humanHealthText != null)
-            {
-                string condition = GameManager.Instance != null
-                    ? GameManager.Instance.CurrentCondition.ToString().ToUpper()
-                    : "NORMAL";
-                humanHealthText.text = $"HOST: {health:F0}% — {condition}";
-            }
-
-            if (humanHealthFill != null)
-            {
-                humanHealthFill.fillAmount = health / 100f;
-                // Color gradient: red(0%) -> yellow(50%) -> green(100%)
-                humanHealthFill.color = Color.Lerp(
-                    Color.Lerp(Color.red, Color.yellow, health / 50f),
-                    Color.Lerp(Color.yellow, Color.green, (health - 50f) / 50f),
-                    health > 50f ? 1f : 0f);
-            }
         }
 
         private void UpdateSkillButtons()

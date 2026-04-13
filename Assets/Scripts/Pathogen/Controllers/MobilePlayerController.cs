@@ -11,7 +11,6 @@ namespace Pathogen
         protected override void Start()
         {
             base.Start();
-            CreateCancelButton();
         }
 
         protected override void ResetControllerState()
@@ -146,39 +145,10 @@ namespace Pathogen
 
         // ─── CANCEL BUTTON ──────────────────────────────────────────────
 
-        private void CreateCancelButton()
+        public void SetCancelButton(GameObject button)
         {
-            var canvas = FindAnyObjectByType<Canvas>();
-            if (canvas == null) return;
-
-            skillCancelButton = new GameObject("AimCancelButton", typeof(RectTransform));
-            skillCancelButton.transform.SetParent(canvas.transform, false);
-
-            skillCancelButtonRect = skillCancelButton.GetComponent<RectTransform>();
-            skillCancelButtonRect.anchorMin = new Vector2(1f, 0f);
-            skillCancelButtonRect.anchorMax = new Vector2(1f, 0f);
-            skillCancelButtonRect.anchoredPosition = new Vector2(-140f, 95f);
-            skillCancelButtonRect.sizeDelta = new Vector2(50f, 50f);
-            skillCancelButtonRect.pivot = new Vector2(0.5f, 0.5f);
-
-            var bgImage = skillCancelButton.AddComponent<Image>();
-            bgImage.color = new Color(0.6f, 0.1f, 0.1f, 0.85f);
-
-            var labelGO = new GameObject("XLabel", typeof(RectTransform));
-            labelGO.transform.SetParent(skillCancelButton.transform, false);
-            var labelRT = labelGO.GetComponent<RectTransform>();
-            labelRT.anchorMin = Vector2.zero;
-            labelRT.anchorMax = Vector2.one;
-            labelRT.sizeDelta = Vector2.zero;
-            labelRT.anchoredPosition = Vector2.zero;
-
-            var label = labelGO.AddComponent<Text>();
-            label.text = "X";
-            label.fontSize = 28;
-            label.color = Color.white;
-            label.alignment = TextAnchor.MiddleCenter;
-            label.font = GameBootstrap.UIFont;
-
+            skillCancelButton = button;
+            skillCancelButtonRect = button.GetComponent<RectTransform>();
             skillCancelButton.SetActive(false);
         }
 

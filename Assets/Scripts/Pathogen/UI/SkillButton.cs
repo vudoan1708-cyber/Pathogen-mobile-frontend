@@ -16,8 +16,16 @@ namespace Pathogen
         public float cancelBoundary = 350f;
 
         private bool isPressed;
+        private bool hasDragged;
         private Vector2 pressPosition;
+        private Vector3 lastAimDirection;
         private bool IsMobile => GameBootstrap.IsMobile;
+
+        void Update()
+        {
+            if (!isPressed || !hasDragged || !IsMobile) return;
+            playerController.OnMobileSkillAimUpdate(lastAimDirection);
+        }
 
         public void OnPointerDown(PointerEventData eventData)
         {
@@ -25,6 +33,7 @@ namespace Pathogen
             if (playerController.champion.IsDead) return;
 
             isPressed = true;
+            hasDragged = false;
             pressPosition = eventData.position;
             AutoAttackButton.ClearActive();
             playerController.StartAiming(skillIndex, true);
@@ -37,9 +46,13 @@ namespace Pathogen
             Vector2 offset = eventData.position - pressPosition;
             if (offset.sqrMagnitude > 1f)
             {
-                Vector3 aimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
-                playerController.OnMobileSkillAimUpdate(aimDirection);
+                hasDragged = true;
+                lastAimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
+                playerController.OnMobileSkillAimUpdate(lastAimDirection);
             }
+
+            bool overCancel = playerController.IsTouchOverCancelButton(eventData.position);
+            playerController.SetAimCancelTint(overCancel);
         }
 
         public void OnPointerUp(PointerEventData eventData)
@@ -51,7 +64,7 @@ namespace Pathogen
 
             float dist = Vector2.Distance(eventData.position, pressPosition);
 
-            if (dist > cancelBoundary || playerController.IsTouchOverCancelButton(eventData.position))
+            if (playerController.IsTouchOverCancelButton(eventData.position))
             {
                 playerController.CancelAiming();
                 return;

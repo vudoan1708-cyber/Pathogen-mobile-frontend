@@ -11,6 +11,7 @@ namespace Pathogen
         public RectTransform manaFill;
         public RectTransform manaTrail;
         public Text levelText;
+        public Image xpRing;
 
         private float healthTarget;
         private float healthDisplayed;
@@ -20,8 +21,10 @@ namespace Pathogen
         private float manaDisplayed;
         private float manaTrailValue;
 
+        private float xpDisplayed;
         private const float FillSpeed = 60f;
         private const float TrailSpeed = 20f;
+        private const float XpFillSpeed = 3f;
 
         void Start()
         {
@@ -44,9 +47,24 @@ namespace Pathogen
             if (levelText != null)
                 levelText.text = champion.level.ToString();
 
+            if (xpRing != null)
+                xpRing.fillAmount = champion.currentXP / champion.xpToNextLevel;
+
             champion.OnHealthChanged += (cur, max) => healthTarget = cur / max;
             champion.OnManaChanged += (cur, max) => manaTarget = cur / max;
-            champion.OnLevelUp += (lvl) => { if (levelText != null) levelText.text = lvl.ToString(); };
+            champion.OnLevelUp += (lvl) =>
+            {
+                if (levelText != null) levelText.text = lvl.ToString();
+                xpDisplayed = 0f;
+            };
+            champion.OnDeath += (_) => SetVisible(false);
+            champion.OnRespawn += () => SetVisible(true);
+        }
+
+        private void SetVisible(bool visible)
+        {
+            foreach (Transform child in transform)
+                child.gameObject.SetActive(visible);
         }
 
         void Update()
@@ -54,6 +72,13 @@ namespace Pathogen
             float dt = Time.deltaTime;
             AnimateBar(ref healthDisplayed, ref healthTrailValue, healthTarget, healthFill, healthTrail, dt);
             AnimateBar(ref manaDisplayed, ref manaTrailValue, manaTarget, manaFill, manaTrail, dt);
+
+            if (xpRing != null && champion != null)
+            {
+                float xpTarget = champion.currentXP / champion.xpToNextLevel;
+                xpDisplayed = Mathf.MoveTowards(xpDisplayed, xpTarget, XpFillSpeed * dt);
+                xpRing.fillAmount = xpDisplayed;
+            }
         }
 
         void LateUpdate()

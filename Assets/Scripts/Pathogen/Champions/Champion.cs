@@ -7,7 +7,8 @@ namespace Pathogen
     {
         [Header("Champion Identity")]
         public string championName = "Champion";
-        public float sightRange = 12f; // Per-champion vision/auto-retarget range
+        public float sightRange = 12f;
+        public float championHeight = 1f;
 
         [Header("Mana")]
         public float maxMana = 200f;

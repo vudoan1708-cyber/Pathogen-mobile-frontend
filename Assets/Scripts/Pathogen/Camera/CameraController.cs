@@ -22,9 +22,9 @@ namespace Pathogen
         public bool followChampion;
 
         // Camera settings — Wild Rift-style angled top-down, orthographic
-        private readonly Vector3 baseOffset = new Vector3(3f, 22f, -9f);
+        private readonly Vector3 baseOffset = new Vector3(-3f, 22f, -9f);
         private readonly Vector3 baseLookOffset = new Vector3(0f, 0f, 3f);
-        private float orthoSize = 10f;
+        private float orthoSize = 7f;
 
         private Camera cam;
         private Vector3 focusPoint;
