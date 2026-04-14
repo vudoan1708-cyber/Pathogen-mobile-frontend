@@ -127,35 +127,35 @@ The game's currency, earned through farming. **Minion kills do not affect human 
 When multiple teammates are nearby (within 12 units) during a kill, the gold and XP are **split evenly** among all nearby allied champions. This encourages teamwork but means solo farming is more gold-efficient per player. Strategic choice: group for safety or solo for economy.
 
 ### What Bio-Currency Buys
-Unlike traditional MOBAs, you don't buy items. Instead, you **upgrade your skills** through the Mutation Shop.
+Unlike traditional MOBAs, you don't buy items. Instead, you spend Bio-currency on **champion-wide tier upgrades** through the Mutation Shop. Skill rank-ups are free — they come with leveling.
 
 ---
 
-## Mutation Shop (Skill Upgrade System)
+## Mutation Shop (Tier Upgrade System)
 
-Each champion has 4 skills. Each skill can be evolved through mutation tiers, up to 4 tiers per skill:
+Each level-up grants a **free skill rank slot** — choose which of your 4 skills to rank up. Bio-currency is spent on **champion-wide tier upgrades** purchased from the Mutation Shop:
 
-### Upgrade Path
+### Tier Upgrade Path
 
 ```
-LOCKED → BASE (free) → POTENCY (1200 Bio) → ALPHA or OMEGA (2000 Bio) → APEX (3600 Bio)
+TIER 1 (free) → POTENCY (1,200 Bio) → ALPHA or OMEGA (2,000 Bio) → APEX (3,600 Bio)
 ```
 
 ### Tier Details
 
-| Tier | Cost | Effect |
-|------|------|--------|
-| **Base** | Free | Unlocks the skill |
-| **Potency** | 1200 | +10–25% skill attributes (varies per skill — e.g. armor skill gets +15% armor, damage skill gets +20% damage), +5% omnivamp |
-| **Alpha** (Branch A) | 2000 | Offensive: +15% crit damage, +10% crit chance, Bleed on-hit |
-| **Omega** (Branch B) | 2000 | Defensive: +10% damage reflection, +20 magic resist, heal on cast |
-| **Apex** | 3600 | Final evolution: +10% all scaling, +25 AD, +25 AP |
+| Tier | Cost | Unlock Condition | Champion-Wide Bonus |
+|------|------|-----------------|---------------------|
+| **Tier 1** | Free | All skills at Rank 1 | Skills usable, +0.3 move speed per skill |
+| **Potency** | 1,200 | All 4 skills at Rank 2 | +20% skill damage, +5% omnivamp, +0.5 move speed |
+| **Alpha** (Branch A) | 2,000 | Potency purchased | +15% crit damage, +10% crit chance, Bleed on-hit |
+| **Omega** (Branch B) | 2,000 | Potency purchased | +10% damage reflection, +20 MR, heal on cast |
+| **Apex** | 3,600 | All 4 skills at Rank 3 (level 12) | +10% all scaling, +25 AD, +25 AP |
 
-### Branch Unlocking
+### Branch Rules
 
-- **Alpha/Omega branches** appear when all 4 skills reach **Tier 2 (Potency)**.
-- **Apex** becomes available when all 4 skills reach **Tier 3 (Alpha or Omega)** — champion must be at least **level 12**.
-- **Branches are reversible:** You can switch from Alpha to Omega (or vice versa) by paying the branch cost again (2000 Bio). If champion is already past the branch (e.g. level 12 with Apex), they must also re-buy Apex (3600 Bio) — total cost to switch: **5600 Bio**.
+- **Alpha/Omega** unlocks after purchasing Potency. Choose one branch.
+- **Apex** becomes available when all 4 skills reach Rank 3 — champion must be at least **level 12**.
+- **Branches are reversible:** You can switch from Alpha to Omega (or vice versa) by paying the branch cost again (2,000 Bio). If champion is already past the branch (e.g. level 12 with Apex), they must also re-buy Apex (3,600 Bio) — total cost to switch: **5,600 Bio**.
 
 ### Genome Slots (Future)
 Additional passive slots:
@@ -234,7 +234,7 @@ All defenders **enrage at 30% HP** — gaining +50% damage and +30% movement spe
 
 | Champion | Role | Flavor |
 |----------|------|--------|
-| **Phagorath** | Tank / Guardian | The Devourer — Macrophage Titan |
+| **Phagorath** | Tank / Bruiser | The Devourer — Macrophage Titan |
 | **KyllexT** | Assassin / Hunter | The Precision Strike — Killer T-Cell |
 | **SeraB** | Support / Healer | The Antibody Weaver — B-Cell Architect |
 | **Pyrexia** | Mage / Area Denial | The Fever Engine — Inflammatory Response |
@@ -243,17 +243,18 @@ All defenders **enrage at 30% HP** — gaining +50% damage and +30% movement spe
 
 ## Champion Skills & Passives
 
-Each champion has 1 passive and 4 active skills. Skills are numbered 1–4 (mobile controls). Each skill has 3 ranks — each rank increases the skill's base values by **+15%** (damage, healing, shield, buff). Tier milestones (Potency, Alpha/Omega, Apex) add champion-wide bonuses on top.
+Each champion has 1 passive and 4 active skills. Skills are numbered 1–4 (mobile controls). Each skill has 3 ranks — rank-ups are **free** (granted on level-up). Champion-wide tier bonuses (Potency, Alpha/Omega, Apex) are purchased with Bio-currency from the Mutation Shop.
 
 ### Skill Rank Scaling
 
-| Rank | Base Multiplier | Example (150 base damage) |
-|------|----------------|---------------------------|
-| 1 | 1.0× | 150 |
-| 2 | 1.15× | 172 |
-| 3 | 1.32× | 198 |
+Each rank-up improves the skill's primary stats (damage, cooldown, duration) and may unlock bonus effects at higher ranks. See individual champion sections below for exact per-rank values.
 
-CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank**.
+**General scaling guidelines:**
+- **Damage skills:** +10–20 flat damage per rank (~15% of base)
+- **Cooldowns:** -0.5s (short CDs) to -5s (ultimates) per rank
+- **CC durations:** +0.1–0.2s per rank (conservative — CC is powerful)
+- **Dash distance:** +0.5 per rank
+- **% effects:** +1–3% per rank
 
 ---
 
@@ -264,9 +265,18 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
 | 1 | Tissue Melt | Projectile | 120 magic dmg, 4s CD, 40 mana | Deals damage and dissolves **30% of target's armor** over 3s. Applies 1 Decay stack. Rank 2: +3% omnivamp. Rank 3: +6% omnivamp. |
-| 2 | Subdermal Tunnel | Dash | 60 magic dmg, 10s CD, 50 mana | Burrow through terrain, **untargetable** during dash (6 distance). Exit deals AoE damage and applies 1 Decay stack. |
+| 2 | Subdermal Tunnel | Dash | 60 magic dmg, 10s CD, 50 mana | Burrow through terrain, **untargetable** during dash. Exit deals AoE damage and applies 1 Decay stack. |
 | 3 | Septic Bloom | AOE | 100 magic dmg, 12s CD, 60 mana | Mark an area — after **1.2s** erupts with toxin. **25% slow** for 2s, applies 1 Decay stack. |
-| 4 | Total Necrosis | Target | 50 true ability dmg/stack, 60s CD, 100 mana | Consume all Decay stacks on enemies in range. Become **Enraged** and deal more **50 base AP** and **25 base attack damage / stack** as true damage for **5 seconds**. Heals Necrova for **25%** of total damage dealt. |
+| 4 | Total Necrosis | Self-Buff | 50 AP + 25 AD/stack, 60s CD, 100 mana | Consume all Decay stacks on enemies in range. Become **Enraged** — deal **50 AP + 25 AD per stack** as true damage for **5 seconds**. Heals **25%** of damage dealt. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Tissue Melt** | +18 dmg (→138), -0.5s CD (→3.5s), gains +3% omnivamp | +20 dmg (→158), -0.5s CD (→3.0s), omnivamp → 6% |
+| **Subdermal Tunnel** | +10 AoE dmg (→70), -1s CD (→9s), +0.5 dash distance | +10 AoE dmg (→80), -1s CD (→8s), +0.5 dash distance |
+| **Septic Bloom** | +15 dmg (→115), -1s CD (→11s), +0.2s slow (→2.2s) | +15 dmg (→130), -1s CD (→10s), +0.2s slow (→2.4s) |
+| **Total Necrosis** | +8 AP/stack (→58), +4 AD/stack (→29), -5s CD (→55s) | +7 AP/stack (→65), +4 AD/stack (→33), -5s CD (→50s), heal → 30% |
 
 ---
 
@@ -277,22 +287,40 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
 | 1 | Misfolded Cascade | Projectile | 150 magic dmg, 4s CD, 40 mana | Skillshot that **chains** up to 3 enemies. Each bounce deals **+12%** more than the last. |
-| 2 | Neural Hijack | Target | No dmg, 10s CD, 50 mana | **Reverses** enemy movement controls for 1.2s. Pure disruption. Rank scaling: +0.2s per rank. |
-| 3 | Plaque Wall | AOE | No dmg, 12s CD, 55 mana | Create a protein wall for 3s. Blocks projectiles, enemies passing through are **30% slowed** for 1.5s. |
-| 4 | Cognitive Collapse | AOE | 80 magic dmg + 30/s, 60s CD, 100 mana | Scramble enemy abilities in area for 3s (abilities fire in random directions). Deals **250 damage** on cast + **8% of remainning health / second** when Confused. |
+| 2 | Neural Hijack | Target | No dmg, 10s CD, 50 mana | **Reverses** enemy movement controls for 1.2s. Pure disruption. +0.2s per rank. |
+| 3 | Plaque Wall | AOE | No dmg, 12s CD, 55 mana | Create a protein wall for 3s. Blocks projectiles, enemies passing through are **30% slowed**. |
+| 4 | Cognitive Collapse | AOE | 250 magic dmg, 60s CD, 100 mana | Scramble enemy abilities in area for 3s (abilities fire in random directions). Deals **250 magic damage** on cast + **8% of remaining health / second** when Confused. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Misfolded Cascade** | +22 dmg (→172), -0.5s CD (→3.5s), bounce dmg → +14% | +26 dmg (→198), -0.5s CD (→3.0s), bounce dmg → +16% |
+| **Neural Hijack** | +0.2s reverse (→1.4s), -1s CD (→9s) | +0.2s reverse (→1.6s), -1s CD (→8s) |
+| **Plaque Wall** | +0.5s wall (→3.5s), -1s CD (→11s), +0.2s slow duration | +0.5s wall (→4s), -1s CD (→10s), +0.2s slow duration |
+| **Cognitive Collapse** | +30 dmg (→280), -5s CD (→55s), +0.2s scramble (→3.2s) | +30 dmg (→310), -5s CD (→50s), +0.3s scramble (→3.5s) |
 
 ---
 
 ### Sporaxis (Virus — Tank)
 
-**Passive: Mycelial Network** — Converts **1.5% of max HP into AD**. Gains **+2 armor and +1 MR** per nearby allied minion (max 4 stacks, 8 unit range). Taking damage gives nearby allied champions +8% move speed for 2s.
+**Passive: Mycelial Network** — Converts **1.5% of max HP into AD**. Gains **+2 armor and +1 MR** per nearby allied minion (max 4 stacks).
 
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
 | 1 | Mycelial Slam | AOE | 80 phys dmg, 8s CD, 40 mana | Ground pound. First enemy hit is **rooted 1s**. |
 | 2 | Spore Shield | Self-Buff | Shield: 15% max HP, 10s CD, 50 mana | Shield for 4s. When broken or expired, releases toxic cloud granting nearby allies **+10 MR** for 3s. |
-| 3 | Parasitic Latch | Target | No dmg, 14s CD, 60 mana | Attach to enemy for 1.5s — **drain 10% of their AD and armor**, adding to Sporaxis for 5s. |
-| 4 | Colony Eruption | Self-Buff | 40 magic dmg/clone death, 60s CD, 100 mana | Split into **3 mini-clones** (25% of Sporaxis's stats) for 5s. Clones attack Sporaxis's target. On death each clone **explodes** for 40 magic AOE damage each. Clones inherit Mycelial Network armor stacks. |
+| 3 | Parasitic Latch | Target | No dmg, 14s CD, 60 mana | Shoot a branch in a direction and attach to enemy for 1.5s if hit — **drain 10% of their AD and armor** for 5s. |
+| 4 | Colony Eruption | Self-Buff | 40 magic dmg/clone death, 60s CD, 100 mana | Split into **3 mini-clones** (25% of Sporaxis's stats) for 5s. Clones attack Sporaxis's target. On death each clone **explodes** for 40 magic AoE damage. Clones inherit Mycelial Network armor stacks. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Mycelial Slam** | +12 dmg (→92), -0.5s CD (→7.5s), +0.1s root (→1.1s) | +13 dmg (→105), -0.5s CD (→7s), +0.1s root (→1.2s) |
+| **Spore Shield** | +2% shield (→17%), -1s CD (→9s), +0.5s duration (→4.5s), MR → +12 | +2% shield (→19%), -1s CD (→8s), +0.5s duration (→5s), MR → +15 |
+| **Parasitic Latch** | -1s CD (→13s), +0.1s attach (→1.6s), drain → 12% | -1s CD (→12s), +0.1s attach (→1.7s), drain → 14% |
+| **Colony Eruption** | +6 dmg/clone (→46), -5s CD (→55s), +0.5s clones (→5.5s), stats → 28% | +6 dmg/clone (→52), -5s CD (→50s), +0.5s clones (→6s), stats → 30% |
 
 ---
 
@@ -303,9 +331,18 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
 | 1 | Viral Volley | Projectile | 100 phys dmg, 4s CD, 35 mana | Applies 1 **Infection** stack. At 4 stacks on same target: burst **60 bonus magic damage** and spread 1 stack to nearest enemy. |
-| 2 | Mutation Drift | Dash | 55 phys dmg, 10s CD, 45 mana | Dash leaving particle trail for 2s. Enemies crossing gain 1 Infection stack. |
-| 3 | Incubation Zone | AOE | 20 magic dmg, 14s CD, 50 mana | Place a spore ward. Enemy champion steps on will explode it + grants vision of area for 3s. |
-| 4 | Pandemic Protocol | Self-Buff | No dmg, 60s CD, 100 mana | Mark all visible enemies for 5s. Auto-attacks have **100% Infection transfer** (spreads to nearest unmarked enemy) and gain **+15% crit chance**. |
+| 2 | Mutation Drift | Dash | 10s CD, 45 mana | Dash leaving particle trail for 2s. Enemies crossing gain 1 Infection stack. |
+| 3 | Incubation Zone | AOE | 20 magic dmg, 14s CD, 50 mana | Place a spore ward. Enemy champion steps on will explode it for 20 AoE magic damage + grants vision of area for 3s. |
+| 4 | Pandemic Protocol | Self-Buff | 60s CD, 100 mana | Mark all visible enemies for 5s. Auto-attacks have **100% Infection transfer** (spreads to nearest unmarked enemy) and gain **+15% crit chance**. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Viral Volley** | +15 dmg (→115), -0.5s CD (→3.5s), burst → 70 | +15 dmg (→130), -0.5s CD (→3.0s), burst → 80 |
+| **Mutation Drift** | -1s CD (→9s), +0.5 dash distance, +0.5s trail (→2.5s) | -1s CD (→8s), +0.5 dash distance, +0.5s trail (→3s) |
+| **Incubation Zone** | +5 dmg (→25), -1s CD (→13s), +1s vision (→4s) | +5 dmg (→30), -1s CD (→12s), +1s vision (→5s) |
+| **Pandemic Protocol** | -5s CD (→55s), +0.5s mark (→5.5s), crit → +18% | -5s CD (→50s), +0.5s mark (→6s), crit → +20% |
 
 ---
 
@@ -315,10 +352,19 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
-| 1 | Engulf | Target | 1/6 max HP + 3% target max HP as phys dmg, 6s CD (-1s per skill upgrade), 40 mana | Grab and **suppress** enemy for 1.2s, dealing 1/6 max HP as physical damage + 3% target max HP. During suppress, Phagorath regenerates **2% max HP**. |
-| 2 | Cytoplasm Crush | AOE | 70 phys dmg, 14s CD, 50 mana | Slam area for 70 physical damage creating a barrier zone - allies inside take **20% reduced damage** for 3s. |
-| 3 | Chemotaxis Charge | Dash | 60 phys dmg, 40% slow if hit for 2s, 10s CD, 45 mana | Dash through enemies. First enemy hit is slowed, gain **+8 armor** for 4s. |
-| 4 | Immune Cascade | AOE | No dmg, 60s CD, 100 mana | Push all enemy champions outward, **30% slow** for 2s. Heal nearby allies **15% max HP**. Cleanse enemy zones. |
+| 1 | Engulf | Target | 1/6 max HP + 3% target max HP as phys dmg, 6s CD, 40 mana | Grab and **suppress** enemy for 1.2s, dealing 1/6 max HP as physical damage + 3% target max HP. During suppress, Phagorath regenerates **2% max HP**. |
+| 2 | Cytoplasm Crush | AOE | 70 phys dmg, 14s CD, 50 mana | Slam area for 70 physical damage creating a barrier zone — allies inside take **20% reduced damage** for 3s. |
+| 3 | Chemotaxis Charge | Dash | 60 phys dmg, 40% slow 2s, 10s CD, 45 mana | Dash through enemies. First enemy hit is slowed 40% for 2s, gain **+8 armor** for 4s. |
+| 4 | Immune Cascade | AOE | 120 magic dmg, 60s CD, 100 mana | Push enemies outward dealing 120 magic damage, **30% slow** for 2s. Heal allies **10% max HP**. Cleanse zones. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Engulf** | -1s CD (→5s), target HP → 3.5%, +0.1s suppress (→1.3s), regen → 2.5% | -1s CD (→4s), target HP → 4%, +0.1s suppress (→1.4s), regen → 3% |
+| **Cytoplasm Crush** | +10 dmg (→80), -1s CD (→13s), dmg reduction → 22% | +10 dmg (→90), -1s CD (→12s), dmg reduction → 25% |
+| **Chemotaxis Charge** | +10 dmg (→70), -1s CD (→9s), +0.5 dash, armor → +10, +0.1s slow (→2.1s) | +10 dmg (→80), -1s CD (→8s), +0.5 dash, armor → +12, +0.1s slow (→2.2s) |
+| **Immune Cascade** | +15 dmg (→135), -5s CD (→55s), heal → 12%, +0.2s slow (→2.2s) | +15 dmg (→150), -5s CD (→50s), heal → 14%, +0.2s slow (→2.4s) |
 
 ---
 
@@ -333,6 +379,15 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 | 3 | Perforin Burst | AOE | 3% target max HP, 12s CD, 55 mana | Cone of cytotoxic enzymes dealing **3% target max HP** as magic damage over 3s. |
 | 4 | Adaptive Recall | Self-Buff | 60s CD, 100 mana | **Passive:** +3 AD per unique enemy type killed (stacks separately per type). **Active:** +30% attack speed against Exposed targets for 4s. |
 
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Antigen Lock** | +5 true dmg/hit (→+25), -0.5s CD (→7.5s), +0.1s slow (→1.1s) | +5 true dmg/hit (→+30), -0.5s CD (→7s), +0.1s slow (→1.2s) |
+| **Rapid Response** | +8 dmg (→63), -1s CD (→9s), +0.5 dash, Exposed → +9% | +8 dmg (→71), -1s CD (→8s), +0.5 dash, Exposed → +10% |
+| **Perforin Burst** | +0.5% target HP (→3.5%), -1s CD (→11s) | +0.5% target HP (→4%), -1s CD (→10s) |
+| **Adaptive Recall** | -5s CD (→55s), AS → +35%, AD/kill → +4 | -5s CD (→50s), AS → +40%, AD/kill → +5, duration → 4.5s |
+
 ---
 
 ### SeraB (Immune — Support)
@@ -341,23 +396,41 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
-| 1 | Antibody Tether | Target | 3 HP/s regen, 10s CD, 40 mana | Link to ally for 5s — both regenerate. SeraB absorbs **20% of lethal damage** to tethered ally. |
-| 2 | Plasma Infusion | Target | 80 HP heal, 8s CD, 50 mana | Heal ally over 3s. Overhealing converts to **shield** (max 40 HP, 4s duration). |
+| 1 | Antibody Tether | Target | 3 HP/s regen, 10s CD, 40 mana | Link to ally for 10s — both regenerate 3 HP/s. SeraB absorbs **20% of damage** to tethered ally. |
+| 2 | Plasma Infusion | Target | 80 HP heal, 8s CD, 50 mana | Heal ally 80 HP over 3s. Overhealing converts to **shield** (max 40 HP, 4s duration). |
 | 3 | Opsonize | Target | No dmg, 12s CD, 55 mana | Tag enemy — **+10% damage from all sources**, revealed for 3s. |
-| 4 | Herd Immunity | AOE | No dmg, 60s CD, 100 mana | Allies within range share a **collective HP pool** for 2s. Damage to any ally is split evenly among all allies in the zone. |
+| 4 | Herd Immunity | AOE | 60s CD, 100 mana | Allies within range share a **collective HP pool** for 2s. Damage to any ally is split evenly among all allies in the zone. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Antibody Tether** | +1 HP/s (→4), -1s CD (→9s), absorb → 23% | +1 HP/s (→5), -1s CD (→8s), absorb → 25%, link → 12s |
+| **Plasma Infusion** | +12 heal (→92), -0.5s CD (→7.5s), shield → 48 | +13 heal (→105), -0.5s CD (→7s), shield → 55, shield duration → 5s |
+| **Opsonize** | -1s CD (→11s), +0.5s reveal (→3.5s), dmg amp → +11% | -1s CD (→10s), +0.5s reveal (→4s), dmg amp → +12% |
+| **Herd Immunity** | -5s CD (→55s), +0.3s pool (→2.3s) | -5s CD (→50s), +0.2s pool (→2.5s) |
 
 ---
 
 ### Pyrexia (Immune — Mage)
 
-**Passive: Fever Response** — All magic damage applies **Burn** (1.5% of damage dealt over 2s, stacks up to 3×). At 3 Burn stacks, target takes **+6% magic damage** from all sources. Ability damage on enemies recovers **0.05% human health per enemy hit**.
+**Passive: Fever Response** — All magic damage applies a stack on an enemy, on every 3rd stack applies **Burn** (1.5% of damage dealt over 2s). Additionally, at 3 stacks, target takes **+6% magic damage** from all sources. Ability hits on Burnt enemies recover **0.05% human health**.
 
 | # | Name | Type | Base Stats | Description |
 |---|------|------|-----------|-------------|
-| 1 | Fever Spike | Projectile | 150 magic dmg, 4s CD, 35 mana | Heat bolt applying **15% stacking slow**. At 4 stacks: target is **silenced 1s**. |
-| 2 | Inflammation Zone | AOE | 20 magic dmg/s, 14s CD, 55 mana | Burning area for 4s. Allies: **+10% attack speed**. Enemies: damage ticks + **-20% healing**. |
+| 1 | Fever Spike | Projectile | 80 magic dmg, 4s CD, 35 mana | Heat bolt applying **15% stacking slow**. At 4 stacks: target is **silenced 1s**. |
+| 2 | Inflammation Zone | AOE | 20 magic dmg/s, 14s CD, 55 mana | Burning area for 4s. Allies: **+10% attack speed**. Enemies: 20 magic damage per second. |
 | 3 | Thermal Barrier | AOE | No dmg, 14s CD, 50 mana | Wall of heat haze for 3s — blocks vision, **deflects** the first projectile that hits it. |
-| 4 | Hyperthermia | AOE | 1.5% max HP/s, 60s CD, 100 mana | Map-wide: all virus champions burn for **1.5% max HP/s** for 8s. Below 30% host HP: also damages allies at 0.5%/s. |
+| 4 | Hyperthermia | AOE | 1.5% max HP/s, 60s CD, 100 mana | Map-wide: all virus champions burn for **1.5% max HP/s** for 8s. Below 30% host HP: increases to **3%/s**. |
+
+#### Rank-Up Details
+
+| Skill | Rank 1 → 2 | Rank 2 → 3 |
+|-------|-----------|-----------|
+| **Fever Spike** | +12 dmg (→92), -0.5s CD (→3.5s), slow → 17% per stack | +13 dmg (→105), -0.5s CD (→3.0s), slow → 19% per stack, silence → 1.1s |
+| **Inflammation Zone** | +4 dmg/s (→24), -1s CD (→13s), +0.5s zone (→4.5s), AS → +12% | +4 dmg/s (→28), -1s CD (→12s), +0.5s zone (→5s), AS → +15% |
+| **Thermal Barrier** | -1s CD (→13s), +0.5s wall (→3.5s) | -1s CD (→12s), +0.5s wall (→4s) |
+| **Hyperthermia** | +0.25% HP/s (→1.75%), -5s CD (→55s), +1s duration (→9s) | +0.25% HP/s (→2.0%), -5s CD (→50s), +1s duration (→10s) |
 
 ---
 
@@ -366,9 +439,10 @@ CC durations gain **+0.2s per rank**. Dash skills gain **+0.5 distance per rank*
 ### 12-Level System
 
 Max level is **12** (4 skills × 3 ranks). Each level-up requires XP and grants:
-1. **1 skill rank-up slot** — choose which skill to upgrade (costs Bio-currency)
+1. **1 skill rank-up slot** — choose which skill to rank up (**free**, no Bio cost)
 2. **1 Gene Point** — free stat choice (immediate, no Bio cost)
-3. **Skill base stat increase** — the ranked-up skill gets +15% stronger
+
+Bio-currency is spent on champion-wide tier upgrades from the Mutation Shop — see [Mutation Shop](#mutation-shop-tier-upgrade-system) section.
 
 ### Gene Point Paths
 
@@ -394,38 +468,13 @@ Max level is **12** (4 skills × 3 ranks). Each level-up requires XP and grants:
 | 11 | 550 | 3,250 |
 | 12 | 600 | 3,850 |
 
-### Tier Milestones
-
-Tier upgrades unlock when all 4 skills reach the same rank. Still costs Bio-currency to purchase.
-
-| Milestone | Trigger | Cost | Champion-Wide Bonus |
-|---|---|---|---|
-| **Tier 1** | All skills Rank 1 | Free | Skills usable, +0.3 move speed per skill |
-| **Potency** | All skills Rank 2 | 1,200/skill | +20% skill damage, +5% omnivamp, +0.5 MS |
-| **Alpha** | All skills Rank 2 + branch | 2,000/skill | +15% crit dmg, +10% crit chance, Bleed on-hit |
-| **Omega** | All skills Rank 2 + branch | 2,000/skill | +10% dmg reflect, +20 MR, heal on cast |
-| **Apex** | All skills Rank 3 | 3,600/skill | +10% all scaling, +25 AD, +25 AP |
-
 ### Respawn Time
 
-`5s + (level × 1s)` — Level 1: 6s, Level 6: 11s, Level 12: 17s.
+`round(4.75 + 0.25 × level²)` — scales quadratically so late-game deaths are severely punishing.
 
----
-
-## Curveball Events (Fairness System)
-
-Every event gives symmetric or complementary effects to both teams:
-
-| Event | Virus Effect | Immune Effect | Design |
-|-------|-------------|---------------|--------|
-| **Joy Surge** | -10% speed | +15% healing | Speed tax vs sustain |
-| **Fear Wave** | +10% damage | +10% armor | Offense vs defense |
-| **Anger Flare** | +15% dmg, -10% def | +15% dmg, -10% def | Symmetric glass-cannon |
-| **Antibiotic Strike** | Dodge AoE zones | Same zones hit bacteria | Both dodge, mobile champs shine |
-| **REM Sleep** | 50% CDR, -15% dmg | 50% CDR, -15% dmg | Symmetric spell-spam |
-| **Microbiome Shift** | Jungle +50% Bio, harder | Same | Economy event, not combat |
-| **Adrenaline Spike** | +20% speed | +20% speed | Universal mobility |
-| **Hypothermia** | -25% AS, +10% ability | Same | Shifts to ability-based play |
+| Level | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|-------|---|---|---|---|---|---|---|---|---|----|----|-----|
+| **Respawn** | 5s | 6s | 7s | 9s | 11s | 14s | 17s | 21s | 25s | 30s | 35s | 41s |
 
 ---
 
@@ -462,7 +511,7 @@ The virus team's infection type determines the host profile:
 ## Strategy Tips
 
 ### Virus Team Strategy
-1. **Early game:** Focus on farming minions for Bio-currency. Don't fight the immune champion head-on until you have skill upgrades.
+1. **Early game:** Focus on farming minions for Bio-currency and XP. Don't fight the immune champion head-on until you have skill ranks.
 2. **Destroy Sentinels:** Taking out Sentinels shifts health -5% each and opens the map. Beware: after 3 shots, Sentinels deal true damage.
 3. **Target mid-tier organs:** Lungs (10%), Liver (8%), Bone Marrow (8%) offer consistent swings without heavy defense.
 4. **Snowball:** Once below 40% health, your +10% damage bonus kicks in. After 10 takedowns, each champion kill shifts 3% instead of 1%.
@@ -470,19 +519,19 @@ The virus team's infection type determines the host profile:
 
 ### Immune Team Strategy
 1. **Protect Sentinels:** Your defensive structures are critical. Losing them swings health -5% each.
-2. **Farm efficiently:** Build Bio-currency for skill upgrades. Each mutation tier also grants move speed — you start slow (3.5) and need upgrades to roam.
+2. **Farm efficiently:** Build Bio-currency for tier upgrades. Each tier milestone also grants move speed — you start slow (3.5) and need upgrades to roam.
 3. **Capture healing organs:** Prioritize Lungs (+10%), Liver (+8%), Bone Marrow (+8%) for steady recovery.
 4. **Comeback mechanic:** Even when behind, the Survival Instinct buff at Critical condition (+15% damage) can turn fights.
 5. **Deny takedowns:** After 10 kills, enemy champion kills shift 3% — avoid feeding late-game kills.
 
 ### Economy Strategy
-1. **Never miss minion kills** — Bio-currency is your only way to upgrade skills and gain move speed.
-2. **Prioritize Q unlock first** — it's free and gives you immediate lane pressure + 0.3 move speed.
-3. **Rush Potency (Tier 2)** on your primary skill — +10–25% skill attributes and +0.5 move speed.
+1. **Never miss minion kills** — Bio-currency is your only way to buy tier upgrades and Genome Slots.
+2. **Level up fast** — skill rank-ups are free but require XP. Each rank-up makes your skills meaningfully stronger.
+3. **Rush Potency (1,200 Bio)** once all skills hit Rank 2 — +20% skill damage, +5% omnivamp, +0.5 move speed.
 4. **Choose Alpha vs Omega wisely** — Alpha for carry/assassin playstyle, Omega for tank/support. This choice is reversible but costly.
-5. **Save for Apex (3600 Bio)** if you're snowballing — +10% all scaling, +25 AD, +25 AP.
-6. **Champion kills are worth 300 Bio** — 12x more than a minion kill, but gold is shared if teammates are nearby (within 12 units). Fight when you have an advantage.
-7. **Solo farm vs group:** Solo farming gives full gold. Grouping splits gold but is safer. Balance risk vs reward.
+5. **Save for Apex (3,600 Bio)** if you're snowballing — +10% all scaling, +25 AD, +25 AP.
+6. **Champion kills are worth 300 Bio** — 12x more than a minion kill, but gold is shared 80 / 20 if teammates are nearby (within 12 units). Gold is shared equally if teammates contributing to slaying the enemies. Fight when you have an advantage.
+7. **Solo farm vs group:** Solo farming gives full gold. Grouping creates pressure to the enemy laner but gold will be shared equally team wise (unless you are a Support).
 
 ---
 
@@ -512,7 +561,7 @@ The virus team's infection type determines the host profile:
 Stat gains come from **Gene Points** (chosen per level-up) — see [Leveling & Gene Points](#leveling--gene-points) section.
 
 **XP to level:** `100 + (level - 1) × 50`
-**Respawn time:** `5s + (level × 1s)`
+**Respawn time:** `round(4.75 + 0.25 × level²)` — Level 1: 5s, Level 6: 14s, Level 12: 41s
 
 ---
 

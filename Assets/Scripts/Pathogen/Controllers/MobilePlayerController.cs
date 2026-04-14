@@ -64,22 +64,7 @@ namespace Pathogen
             if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
 
             if (aimIndicator != null)
-            {
-                switch (def.type)
-                {
-                    case SkillType.Projectile:
-                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.range);
-                        break;
-                    case SkillType.Dash:
-                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.dashDistance);
-                        break;
-                    case SkillType.AreaOfEffect:
-                        var aoePos = transform.position + Vector3.ClampMagnitude(dir, def.range);
-                        aoePos.y = 0.05f;
-                        aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
-                        break;
-                }
-            }
+                aimIndicator.ShowSkillIndicator(def, transform.position, dir);
         }
 
         public override void CancelAiming()
@@ -98,21 +83,8 @@ namespace Pathogen
                 aimDirection = new Vector3(-aimDirection.x, 0f, -aimDirection.z);
 
             var def = champion.skills[aimingSkillIndex].definition;
-
-            switch (def.type)
-            {
-                case SkillType.Projectile:
-                    aimIndicator.ShowDirectionLine(transform.position, aimDirection, def.range);
-                    break;
-                case SkillType.Dash:
-                    aimIndicator.ShowDirectionLine(transform.position, aimDirection, def.dashDistance);
-                    break;
-                case SkillType.AreaOfEffect:
-                    var aoePos = transform.position + aimDirection * def.range;
-                    aoePos.y = 0.05f;
-                    aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
-                    break;
-            }
+            aimIndicator.ShowSkillIndicator(def, transform.position, aimDirection);
+            aimIndicator.ShowRangeRing(transform.position, def.GetEffectiveRange());
         }
 
         public override void OnMobileSkillAimRelease(Vector3 aimDirection)

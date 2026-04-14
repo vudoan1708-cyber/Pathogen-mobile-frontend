@@ -119,6 +119,9 @@ namespace Pathogen
 
             ShowAttackRange(true, 0.3f);
             aimingSkillIndex = skillIndex;
+
+            if (aimIndicator != null)
+                aimIndicator.ShowRangeRing(transform.position, skill.definition.GetEffectiveRange());
         }
 
         public virtual void CancelAiming()
@@ -129,6 +132,7 @@ namespace Pathogen
                 aimIndicator.SetCancelTint(false);
                 aimIndicator.Hide();
             }
+            ShowAttackRange(false);
         }
 
         public void SetAimCancelTint(bool cancelling)

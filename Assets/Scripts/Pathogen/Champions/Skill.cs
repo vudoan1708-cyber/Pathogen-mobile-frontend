@@ -12,6 +12,15 @@ namespace Pathogen
         Target
     }
 
+    public enum IndicatorShape
+    {
+        Line,           // Thin directional line (narrow projectiles, dashes)
+        Rectangle,      // Wide skillshot rectangle showing projectile width
+        Cone,           // Fan/sector shape (cleave, breath attacks)
+        Circle,         // AoE circle placed at target location
+        None            // No indicator (self-buff, passives)
+    }
+
     public enum ProjectilePiercing
     {
         StopOnFirst,
@@ -106,6 +115,11 @@ namespace Pathogen
         // AOE behavior
         public float aoeRadius = 5f;
 
+        // Indicator shape
+        public IndicatorShape indicatorShape = IndicatorShape.Line;
+        public float skillWidth = 1f;
+        public float coneAngle = 60f;
+
         // Buff behavior
         public float buffAttackDamage = 15f;
         public float buffMoveSpeed = 3f;
@@ -113,6 +127,11 @@ namespace Pathogen
 
         // Visuals — how this skill looks (universal across all types)
         public SkillVisuals visuals = new SkillVisuals();
+
+        public float GetEffectiveRange()
+        {
+            return type == SkillType.Dash ? dashDistance : range;
+        }
 
         // Status effects — what this skill applies on hit (any combination)
         public SkillStatusEffect[] statusEffects = Array.Empty<SkillStatusEffect>();

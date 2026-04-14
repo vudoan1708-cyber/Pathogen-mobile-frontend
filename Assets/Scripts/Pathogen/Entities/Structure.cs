@@ -10,7 +10,7 @@ namespace Pathogen
     public class Structure : Entity
     {
         [Header("Structure Settings")]
-        public float detectionRange = 5f;
+        public float structureRange = 7f;
 
         [Header("Escalating Damage")]
         public int trueDamageThreshold = 3;
@@ -23,6 +23,7 @@ namespace Pathogen
         private Entity lastTarget;
         private int consecutiveHits;
         private float structureAttackTimer;
+        private bool focusingMinions;
 
         // Enemy champion that attacked our ally champion — prioritised while in range
         private Entity aggroChampion;
@@ -31,7 +32,8 @@ namespace Pathogen
         private GameObject rangeRing;
         private Renderer rangeRingRenderer;
         private const float RangeRingRevealBuffer = 3f;
-        private static readonly Color rangeRingColor = new Color(1f, 0.7f, 0.15f, 0.25f);
+        private static readonly Color rangeRingSafe = new Color(0.3f, 0.5f, 0.8f, 0.3f);
+        private static readonly Color rangeRingDanger = new Color(1f, 0.3f, 0.2f, 0.3f);
 
         protected override void Awake()
         {
@@ -54,7 +56,7 @@ namespace Pathogen
 
             // Clear aggro if champion is gone
             if (aggroChampion != null && (aggroChampion.IsDead ||
-                Vector3.Distance(transform.position, aggroChampion.transform.position) > attackRange))
+                Vector3.Distance(transform.position, aggroChampion.transform.position) > structureRange))
             {
                 aggroChampion = null;
             }
@@ -64,7 +66,7 @@ namespace Pathogen
             if (attackTarget != null && !attackTarget.IsDead && structureAttackTimer <= 0f)
             {
                 float dist = Vector3.Distance(transform.position, attackTarget.transform.position);
-                if (dist <= attackRange)
+                if (dist <= structureRange)
                 {
                     if (attackTarget == lastTarget)
                         consecutiveHits++;
@@ -93,13 +95,14 @@ namespace Pathogen
         /// Called when an enemy champion attacks an allied champion near this structure.
         /// Only sets aggro if the enemy is within attack range.
         /// </summary>
-        public void OnAllyChampionAttackedBy(Entity enemyChampion)
+            public void OnAllyChampionAttackedBy(Entity enemyChampion)
         {
             if (enemyChampion == null || enemyChampion.IsDead) return;
             if (enemyChampion.team == team) return;
+            if (aggroChampion != null) return;
 
             float dist = Vector3.Distance(transform.position, enemyChampion.transform.position);
-            if (dist <= attackRange)
+            if (dist <= structureRange)
                 aggroChampion = enemyChampion;
         }
 
@@ -107,44 +110,93 @@ namespace Pathogen
         {
             if (GameManager.Instance == null) return;
 
+            // Keep current target while alive and in range
+            if (attackTarget != null && !attackTarget.IsDead)
+            {
+                float dist = Vector3.Distance(transform.position, attackTarget.transform.position);
+                if (dist <= structureRange)
+                {
+                    // Aggro override: enemy champion attacked ally while we're on minions
+                    if (focusingMinions && aggroChampion != null && !aggroChampion.IsDead)
+                    {
+                        float agroDist = Vector3.Distance(transform.position, aggroChampion.transform.position);
+                        if (agroDist <= structureRange)
+                        {
+                            attackTarget = aggroChampion;
+                            focusingMinions = false;
+                            return;
+                        }
+                        aggroChampion = null;
+                    }
+                    return;
+                }
+            }
+
             Team enemyTeam = team == Team.Virus ? Team.Immune : Team.Virus;
             var enemies = GameManager.Instance.GetEntitiesInRange(
-                transform.position, detectionRange, enemyTeam);
+                transform.position, structureRange, enemyTeam);
 
             if (enemies.Count == 0)
             {
                 attackTarget = null;
+                focusingMinions = false;
                 return;
             }
 
-            // Priority 1: Aggro champion still in range
+            // Aggro champion takes priority
             if (aggroChampion != null && !aggroChampion.IsDead)
             {
                 float agroDist = Vector3.Distance(transform.position, aggroChampion.transform.position);
-                if (agroDist <= attackRange)
+                if (agroDist <= structureRange)
                 {
                     attackTarget = aggroChampion;
+                    focusingMinions = false;
                     return;
                 }
                 aggroChampion = null;
             }
 
-            // Target nearest enemy — first in range gets hit
-            Entity nearest = null;
-            float nearestDist = float.MaxValue;
+            Entity nearestMinion = null;
+            Entity nearestChampion = null;
+            float closestMinionDist = float.MaxValue;
+            float closestChampDist = float.MaxValue;
 
-            foreach (var enemy in enemies)
+            foreach (var entity in enemies)
             {
-                if (enemy.IsDead) continue;
-                float dist = Vector3.Distance(transform.position, enemy.transform.position);
-                if (dist < nearestDist)
-                {
-                    nearestDist = dist;
-                    nearest = enemy;
-                }
+                if (entity.IsDead) continue;
+                float dist = Vector3.Distance(transform.position, entity.transform.position);
+                if (entity.entityType == EntityType.Minion && dist < closestMinionDist)
+                    { closestMinionDist = dist; nearestMinion = entity; }
+                if (entity.entityType == EntityType.Champion && dist < closestChampDist)
+                    { closestChampDist = dist; nearestChampion = entity; }
             }
 
-            attackTarget = nearest;
+            // If already focusing minions, stay on minions until none left
+            if (focusingMinions)
+            {
+                if (nearestMinion != null)
+                    { attackTarget = nearestMinion; return; }
+                focusingMinions = false;
+            }
+
+            // First entity in range determines focus
+            if (nearestMinion != null && nearestChampion != null)
+            {
+                if (closestMinionDist <= closestChampDist)
+                    { attackTarget = nearestMinion; focusingMinions = true; }
+                else
+                    { attackTarget = nearestChampion; focusingMinions = false; }
+            }
+            else if (nearestMinion != null)
+            {
+                attackTarget = nearestMinion;
+                focusingMinions = true;
+            }
+            else
+            {
+                attackTarget = nearestChampion;
+                focusingMinions = false;
+            }
         }
 
         // ─── RANGE RING ────────────────────────────────────────────────
@@ -157,7 +209,7 @@ namespace Pathogen
             rangeRing.transform.SetParent(transform, false);
             rangeRing.transform.localPosition = new Vector3(0f, -transform.localScale.y * 0.5f + 0.03f, 0f);
 
-            float diameter = attackRange * 2f;
+            float diameter = structureRange * 2f;
             rangeRing.transform.localScale = new Vector3(
                 diameter / transform.localScale.x,
                 0.01f / transform.localScale.y,
@@ -165,7 +217,7 @@ namespace Pathogen
 
             rangeRingRenderer = rangeRing.GetComponent<Renderer>();
             rangeRingRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            rangeRingRenderer.material.color = rangeRingColor;
+            rangeRingRenderer.material.color = rangeRingSafe;
             rangeRingRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             rangeRing.SetActive(false);
         }
@@ -174,19 +226,29 @@ namespace Pathogen
         {
             if (rangeRing == null || GameManager.Instance == null) return;
 
-            float revealRange = attackRange + RangeRingRevealBuffer;
+            float revealRange = structureRange + RangeRingRevealBuffer;
             bool showRing = false;
 
-            // Check all teams — show ring when any champion approaches
-            var nearby = GameManager.Instance.GetEntitiesInRange(transform.position, revealRange);
-            foreach (var e in nearby)
+            var nearbyEntities = GameManager.Instance.GetEntitiesInRange(transform.position, revealRange);
+            foreach (var entity in nearbyEntities)
             {
-                if (e.IsDead || e.entityType != EntityType.Champion) continue;
-                showRing = true;
-                break;
+                if (entity.IsDead || entity.entityType != EntityType.Champion) continue;
+                if (entity.team != team)
+                {
+                    showRing = true;
+                    break;
+                }
             }
 
             rangeRing.SetActive(showRing);
+
+            if (showRing && rangeRingRenderer != null)
+            {
+                bool hasChampionAggro = attackTarget != null
+                    && attackTarget.entityType == EntityType.Champion
+                    && !attackTarget.IsDead;
+                rangeRingRenderer.material.color = hasChampionAggro ? rangeRingDanger : rangeRingSafe;
+            }
         }
 
         // ─── PROJECTILE ────────────────────────────────────────────────

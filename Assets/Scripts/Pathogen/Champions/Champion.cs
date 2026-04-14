@@ -158,6 +158,10 @@ namespace Pathogen
                 case SkillType.SelfBuff:
                     ApplyBuff(skill);
                     break;
+
+                case SkillType.Target:
+                    PerformTargeted(skill, targetPosition);
+                    break;
             }
         }
 
@@ -271,6 +275,30 @@ namespace Pathogen
 
             yield return new WaitForSeconds(0.5f);
             Destroy(visual);
+        }
+
+        private void PerformTargeted(Skill skill, Vector3 targetPosition)
+        {
+            var def = skill.definition;
+            var vis = def.visuals;
+            Team enemyTeam = team == Team.Virus ? Team.Immune : Team.Virus;
+            var enemies = GameManager.Instance.GetEntitiesInRange(targetPosition, 2f, enemyTeam);
+
+            Entity closest = null;
+            float closestDist = float.MaxValue;
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsDead || enemy.entityType == EntityType.Structure) continue;
+                float dist = (enemy.transform.position - targetPosition).sqrMagnitude;
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    closest = enemy;
+                }
+            }
+
+            if (closest != null)
+                closest.TakeDamage(skill.GetDamage(), def.isMagicDamage, this, vis);
         }
 
         private void ApplyBuff(Skill skill)

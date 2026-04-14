@@ -162,22 +162,7 @@ namespace Pathogen
             if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
 
             if (aimIndicator != null)
-            {
-                switch (def.type)
-                {
-                    case SkillType.Projectile:
-                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.range);
-                        break;
-                    case SkillType.Dash:
-                        aimIndicator.ShowDirectionLine(transform.position, dir.normalized, def.dashDistance);
-                        break;
-                    case SkillType.AreaOfEffect:
-                        var aoePos = transform.position + Vector3.ClampMagnitude(dir, def.range);
-                        aoePos.y = 0.05f;
-                        aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
-                        break;
-                }
-            }
+                aimIndicator.ShowSkillIndicator(def, transform.position, dir);
         }
 
         private void UpdateAimIndicator()
@@ -191,21 +176,8 @@ namespace Pathogen
             if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
 
             var def = champion.skills[aimingSkillIndex].definition;
-
-            switch (def.type)
-            {
-                case SkillType.Projectile:
-                    aimIndicator.ShowDirectionLine(transform.position, direction.normalized, def.range);
-                    break;
-                case SkillType.Dash:
-                    aimIndicator.ShowDirectionLine(transform.position, direction.normalized, def.dashDistance);
-                    break;
-                case SkillType.AreaOfEffect:
-                    Vector3 aoePos = transform.position + Vector3.ClampMagnitude(direction, def.range);
-                    aoePos.y = 0.05f;
-                    aimIndicator.ShowAOECircle(aoePos, def.aoeRadius);
-                    break;
-            }
+            aimIndicator.ShowSkillIndicator(def, transform.position, direction);
+            aimIndicator.ShowRangeRing(transform.position, def.GetEffectiveRange());
         }
 
         private void CastAimedSkill()

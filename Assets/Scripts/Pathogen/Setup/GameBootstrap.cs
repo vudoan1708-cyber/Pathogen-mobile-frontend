@@ -119,19 +119,19 @@ namespace Pathogen
 
             // Virus structures (Infection Nodes)
             CreateStructure("InfectionNode_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
-                           1500f, 80f, 7f, new Color(0.8f, 0.15f, 0.15f));
+                           1500f, 80f, new Color(0.8f, 0.15f, 0.15f));
             CreateStructure("InfectionNode_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
-                           2000f, 100f, 9f, new Color(0.6f, 0.1f, 0.1f));
+                           2000f, 100f, new Color(0.6f, 0.1f, 0.1f));
 
             // Immune structures (Sentinels)
             CreateStructure("Sentinel_1", Team.Immune, new Vector3(half * 0.4f, 0f, -3f),
-                           1500f, 80f, 7f, new Color(0.15f, 0.4f, 0.8f));
+                           1500f, 80f, new Color(0.15f, 0.4f, 0.8f));
             CreateStructure("Sentinel_2", Team.Immune, new Vector3(half * 0.75f, 0f, -3f),
-                           2000f, 100f, 9f, new Color(0.1f, 0.3f, 0.6f));
+                           2000f, 100f, new Color(0.1f, 0.3f, 0.6f));
         }
 
         private void CreateStructure(string name, Team team, Vector3 position,
-                                     float health, float damage, float attackRange, Color color)
+                                     float health, float damage, Color color)
         {
             var structGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             structGO.name = name;
@@ -158,8 +158,6 @@ namespace Pathogen
             structure.maxHealth = health;
             structure.currentHealth = health;
             structure.attackDamage = damage;
-            structure.attackRange = attackRange;
-            structure.detectionRange = attackRange + 2f;
             structure.attackSpeed = 0.88f;
             structure.armor = 40f;
             structure.magicResist = 30f;
@@ -177,27 +175,22 @@ namespace Pathogen
         {
             float half = laneLength * 0.5f;
 
-            // Champions spawn at base (behind the last structure)
-            // --- PLAYER: Immune team champion (right side base) ---
-            playerChampion = CreateChampion(
-                "Immunix", Team.Immune,
-                new Vector3(half * 0.85f, 0.5f, 0f),
-                new Color(0.2f, 0.6f, 1f),
-                GetImmuneSkills());
+            // --- PLAYER ---
+            var playerDef = ChampionRoster.Get("Immunix");
+            var playerPos = new Vector3(half * 0.85f, 0.5f, 0f);
+            playerChampion = CreateChampion(playerDef, Team.Immune, playerPos);
 
-            var playerCtrl = PlayerController.Create(playerChampion.gameObject);
+            PlayerController.Create(playerChampion.gameObject);
 
             var cc = playerChampion.gameObject.AddComponent<CharacterController>();
             cc.height = 1f;
             cc.radius = 0.4f;
             cc.center = Vector3.zero;
 
-            // --- AI: Virus team champion (left side base) ---
-            aiChampion = CreateChampion(
-                "Pathobyte", Team.Virus,
-                new Vector3(-half * 0.85f, 0.5f, 0f),
-                new Color(0.9f, 0.2f, 0.3f),
-                GetVirusSkills());
+            // --- AI ---
+            var aiDef = ChampionRoster.Get("Pathobyte");
+            var aiPos = new Vector3(-half * 0.85f, 0.5f, 0f);
+            aiChampion = CreateChampion(aiDef, Team.Virus, aiPos);
 
             var aiCtrl = aiChampion.gameObject.AddComponent<AIController>();
             aiCtrl.patrolPoints = new Vector3[]
@@ -209,14 +202,13 @@ namespace Pathogen
             };
         }
 
-        private Champion CreateChampion(string name, Team team, Vector3 position,
-                                         Color color, SkillDefinition[] skills)
+        private Champion CreateChampion(ChampionDefinition def, Team team, Vector3 position)
         {
             var champGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            champGO.name = name;
+            champGO.name = def.championName;
             champGO.transform.position = position;
-            champGO.transform.localScale = new Vector3(1f, 1f, 1f);
-            champGO.GetComponent<Renderer>().material.color = color;
+            champGO.transform.localScale = Vector3.one;
+            champGO.GetComponent<Renderer>().material.color = def.color;
 
             var rb = champGO.AddComponent<Rigidbody>();
             rb.isKinematic = true;
@@ -224,174 +216,32 @@ namespace Pathogen
 
             var champ = champGO.AddComponent<Champion>();
             champ.team = team;
-            champ.entityName = name;
-            champ.championName = name;
-            champ.maxHealth = 500f;
-            champ.currentHealth = 500f;
-            champ.maxMana = 250f;
-            champ.currentMana = 250f;
-            champ.attackDamage = 50f;
-            champ.attackSpeed = 1f;
-            champ.attackRange = 2.5f;
-            champ.moveSpeed = 3.5f; // Slow at start — only improves through mutation purchases
-            champ.armor = 15f;
-            champ.magicResist = 12f;
-            champ.healthRegen = 2f;
-            champ.manaRegen = 4f;
+            champ.entityName = def.championName;
+            champ.championName = def.championName;
+            champ.maxHealth = def.maxHealth;
+            champ.currentHealth = def.maxHealth;
+            champ.maxMana = def.maxMana;
+            champ.currentMana = def.maxMana;
+            champ.attackDamage = def.attackDamage;
+            champ.attackSpeed = def.attackSpeed;
+            champ.attackRange = def.attackRange;
+            champ.moveSpeed = def.moveSpeed;
+            champ.armor = def.armor;
+            champ.magicResist = def.magicResist;
+            champ.healthRegen = def.healthRegen;
+            champ.manaRegen = def.manaRegen;
+            champ.sightRange = def.sightRange;
+            champ.healthPerLevel = def.healthPerLevel;
+            champ.manaPerLevel = def.manaPerLevel;
+            champ.attackDamagePerLevel = def.attackDamagePerLevel;
+            champ.armorPerLevel = def.armorPerLevel;
+            champ.magicResistPerLevel = def.magicResistPerLevel;
             champ.spawnPoint = position;
-            champ.InitializeSkills(skills);
+            champ.InitializeSkills(def.skills);
 
             champGO.AddComponent<TargetHighlight>();
 
             return champ;
-        }
-
-        private SkillDefinition[] GetVirusSkills()
-        {
-            return new SkillDefinition[]
-            {
-                new SkillDefinition
-                {
-                    skillName = "Toxic Spit",
-                    description = "Fire a toxic projectile that damages the first enemy hit.",
-                    type = SkillType.Projectile,
-                    baseDamage = 150f, cooldown = 4f, manaCost = 40f,
-                    range = 12f, projectileSpeed = 14f, isMagicDamage = true,
-                    piercing = ProjectilePiercing.StopOnFirst,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0.7f, 0f, 0.9f),
-                        scale = 0.35f,
-                        hasTrail = true,
-                        trailColor = new Color(0.5f, 0f, 0.6f, 0.6f),
-                        trailWidth = 0.12f,
-                        particleColor = new Color(0.6f, 0f, 0.8f),
-                        particleCount = 5, particleSize = 0.1f, particleForce = 4f,
-                        aimColor = new Color(0.7f, 0.2f, 1f, 0.6f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Viral Surge",
-                    description = "Dash forward, dealing damage to enemies at the destination.",
-                    type = SkillType.Dash,
-                    baseDamage = 60f, cooldown = 10f, manaCost = 50f,
-                    dashDistance = 7f, dashSpeed = 22f, isMagicDamage = false,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0.9f, 0.2f, 0.1f),
-                        hasTrail = true,
-                        trailColor = new Color(0.8f, 0.1f, 0f, 0.5f),
-                        trailWidth = 0.2f,
-                        particleColor = new Color(1f, 0.4f, 0.1f),
-                        particleCount = 6, particleSize = 0.14f, particleForce = 5f,
-                        aimColor = new Color(1f, 0.3f, 0.1f, 0.6f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Infection Aura",
-                    description = "Release a burst of infection, damaging all nearby enemies.",
-                    type = SkillType.AreaOfEffect,
-                    baseDamage = 100f, cooldown = 12f, manaCost = 60f,
-                    aoeRadius = 5f, isMagicDamage = true,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0.4f, 0.8f, 0f),
-                        particleColor = new Color(0.5f, 0.9f, 0.1f),
-                        particleCount = 8, particleSize = 0.1f, particleForce = 3f,
-                        aimColor = new Color(0.4f, 0.9f, 0.2f, 0.5f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Mutation",
-                    description = "Mutate your cells — temporarily boosting attack and speed.",
-                    type = SkillType.SelfBuff,
-                    cooldown = 60f, manaCost = 100f, isMagicDamage = false,
-                    buffAttackDamage = 25f, buffMoveSpeed = 3f, buffDuration = 8f,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(1f, 0.3f, 0f),
-                        particleColor = new Color(1f, 0.5f, 0f),
-                        particleCount = 10, particleSize = 0.08f, particleForce = 2f
-                    }
-                }
-            };
-        }
-
-        private SkillDefinition[] GetImmuneSkills()
-        {
-            return new SkillDefinition[]
-            {
-                new SkillDefinition
-                {
-                    skillName = "Antibody Shot",
-                    description = "Fire an antibody projectile that damages the first enemy hit.",
-                    type = SkillType.Projectile,
-                    baseDamage = 150f, cooldown = 4f, manaCost = 35f,
-                    range = 13f, projectileSpeed = 16f, isMagicDamage = true,
-                    piercing = ProjectilePiercing.PierceMinions,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0.2f, 0.7f, 1f),
-                        scale = 0.3f,
-                        hasTrail = true,
-                        trailColor = new Color(0.1f, 0.5f, 0.9f, 0.6f),
-                        trailWidth = 0.1f,
-                        particleColor = new Color(0.3f, 0.8f, 1f),
-                        particleCount = 4, particleSize = 0.1f, particleForce = 3.5f,
-                        aimColor = new Color(0.2f, 0.7f, 1f, 0.6f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Rapid Response",
-                    description = "Dash toward the threat, dealing damage on arrival.",
-                    type = SkillType.Dash,
-                    baseDamage = 55f, cooldown = 10f, manaCost = 45f,
-                    dashDistance = 6f, dashSpeed = 20f, isMagicDamage = false,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0f, 0.9f, 0.5f),
-                        hasTrail = true,
-                        trailColor = new Color(0f, 0.7f, 0.4f, 0.5f),
-                        trailWidth = 0.18f,
-                        particleColor = new Color(0.2f, 1f, 0.6f),
-                        particleCount = 5, particleSize = 0.12f, particleForce = 4f,
-                        aimColor = new Color(0f, 0.9f, 0.5f, 0.6f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Purify Wave",
-                    description = "Emit a purifying wave that damages nearby enemies.",
-                    type = SkillType.AreaOfEffect,
-                    baseDamage = 90f, cooldown = 12f, manaCost = 55f,
-                    aoeRadius = 5f, isMagicDamage = true,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(0.3f, 0.5f, 1f),
-                        particleColor = new Color(0.4f, 0.6f, 1f),
-                        particleCount = 7, particleSize = 0.1f, particleForce = 3f,
-                        aimColor = new Color(0.3f, 0.5f, 1f, 0.5f)
-                    }
-                },
-                new SkillDefinition
-                {
-                    skillName = "Immune Response",
-                    description = "Activate immune overdrive — boost attack and movement.",
-                    type = SkillType.SelfBuff,
-                    cooldown = 60f, manaCost = 100f, isMagicDamage = false,
-                    buffAttackDamage = 20f, buffMoveSpeed = 4f, buffDuration = 8f,
-                    visuals = new SkillVisuals
-                    {
-                        primaryColor = new Color(1f, 1f, 0.3f),
-                        particleColor = new Color(1f, 0.9f, 0.4f),
-                        particleCount = 10, particleSize = 0.08f, particleForce = 2f
-                    }
-                }
-            };
         }
 
         // ─── MINION SPAWNERS ────────────────────────────────────────────
@@ -554,17 +404,18 @@ namespace Pathogen
             // ── Joystick (bottom left, circular) ──
             var joystickBG = CreateUIImage(canvasGO.transform, "JoystickBG",
                 new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110f, 110f),
-                new Vector2(180f, 180f), new Color(1f, 1f, 1f, 0.1f));
+                new Vector2(220f, 220f), new Color(1f, 1f, 1f, 0.1f));
+            joystickBG.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
             MakeCircular(joystickBG);
 
             var joystickHandle = CreateUIImage(joystickBG.transform, "JoystickHandle",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(55f, 55f), new Color(1f, 1f, 1f, 0.45f));
+                new Vector2(70f, 70f), new Color(1f, 1f, 1f, 0.45f));
             MakeCircular(joystickHandle);
 
             var joystick = joystickBG.AddComponent<VirtualJoystick>();
             joystick.handle = joystickHandle.GetComponent<RectTransform>();
-            joystick.handleRange = 55f;
+            joystick.handleRange = 70f;
 
             var playerInput = playerChampion.GetComponent<PlayerController>();
             if (playerInput != null) playerInput.moveJoystick = joystick;
@@ -611,11 +462,11 @@ namespace Pathogen
                 structAtk.activeRing = CreateActiveRing(structBtn.transform, smallBtn);
                 structAtk.content = structBtn.transform.Find("Label").gameObject;
 
-                float cancelY = structY + smallBtn * 0.5f + 120f + smallBtn * 0.3f;
+                float cancelY = structY + smallBtn * 0.5f + 200f + smallBtn * 0.3f;
                 var cancelBtn = CreateButton(canvasGO.transform, "SkillCancelBtn",
                     new Vector2(1f, 0f),
                     new Vector2(-(attackButtonMarginRight + bigBtn * 0.5f), cancelY),
-                    smallBtn * 0.75f, btnFill, "X", true, true);
+                    smallBtn, btnFill, "X", true, true);
 
                 var mobileCtrl = playerInput as MobilePlayerController;
                 if (mobileCtrl != null)

@@ -182,14 +182,13 @@ namespace Pathogen
             if (touchArea == null || canvas == null) return;
 
             RectTransform canvasRect = canvas.GetComponent<RectTransform>();
-            Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            Vector2 canvasSize = canvasRect.sizeDelta;
 
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    canvasRect, screenPos, cam, out Vector2 localPoint))
-            {
-                // Convert from canvas local space (pivot-centered) to bottom-left anchor
-                touchArea.anchoredPosition = localPoint - canvasRect.rect.min;
-            }
+            // Convert screen position to canvas coordinates with bottom-left anchor + center pivot
+            float scaleFactor = canvas.scaleFactor;
+            touchArea.anchoredPosition = new Vector2(
+                screenPos.x / scaleFactor,
+                screenPos.y / scaleFactor);
         }
 
         private void SetJoystickVisible(bool visible)
