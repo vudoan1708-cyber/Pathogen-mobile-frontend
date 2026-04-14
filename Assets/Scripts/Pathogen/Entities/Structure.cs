@@ -10,7 +10,7 @@ namespace Pathogen
     public class Structure : Entity
     {
         [Header("Structure Settings")]
-        public float structureRange = 7f;
+        public float structureRange = 4f;
 
         [Header("Escalating Damage")]
         public int trueDamageThreshold = 3;
@@ -30,10 +30,13 @@ namespace Pathogen
 
         // Range ring visualization
         private GameObject rangeRing;
-        private Renderer rangeRingRenderer;
+        private Material rangeRingMaterial;
         private const float RangeRingRevealBuffer = 3f;
-        private static readonly Color rangeRingSafe = new Color(0.3f, 0.5f, 0.8f, 0.3f);
-        private static readonly Color rangeRingDanger = new Color(1f, 0.3f, 0.2f, 0.3f);
+        private static readonly Color rangeRingSafe = new Color(0.3f, 0.5f, 0.8f, 1f);
+        private static readonly Color rangeRingDanger = new Color(1f, 0.25f, 0.15f, 1f);
+        private bool lastDangerState;
+
+        private static Mesh structureRangeMesh;
 
         protected override void Awake()
         {
@@ -203,22 +206,34 @@ namespace Pathogen
 
         private void CreateRangeRing()
         {
-            rangeRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            rangeRing.name = "StructureRangeRing";
-            DestroyImmediate(rangeRing.GetComponent<CapsuleCollider>());
-            rangeRing.transform.SetParent(transform, false);
-            rangeRing.transform.localPosition = new Vector3(0f, -transform.localScale.y * 0.5f + 0.03f, 0f);
+            if (structureRangeMesh == null)
+                structureRangeMesh = GenerateDiscMesh(48, 6);
+
+            rangeRing = new GameObject("StructureRangeRing");
+            rangeRing.transform.position = new Vector3(
+                transform.position.x, 0.05f, transform.position.z);
 
             float diameter = structureRange * 2f;
-            rangeRing.transform.localScale = new Vector3(
-                diameter / transform.localScale.x,
-                0.01f / transform.localScale.y,
-                diameter / transform.localScale.z);
+            rangeRing.transform.localScale = new Vector3(diameter, 1f, diameter);
 
-            rangeRingRenderer = rangeRing.GetComponent<Renderer>();
-            rangeRingRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            rangeRingRenderer.material.color = rangeRingSafe;
-            rangeRingRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var filter = rangeRing.AddComponent<MeshFilter>();
+            filter.sharedMesh = structureRangeMesh;
+
+            var shader = Shader.Find("Pathogen/BioPulse");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            rangeRingMaterial = new Material(shader);
+            rangeRingMaterial.SetColor("_Color", rangeRingSafe);
+            rangeRingMaterial.SetFloat("_FillAlpha", 0.03f);
+            rangeRingMaterial.SetFloat("_EdgeAlpha", 0.4f);
+            rangeRingMaterial.SetFloat("_PulseSpeed", 0.5f);
+            rangeRingMaterial.SetFloat("_PulseIntensity", 0.1f);
+            rangeRingMaterial.renderQueue = 3010;
+
+            var renderer = rangeRing.AddComponent<MeshRenderer>();
+            renderer.material = rangeRingMaterial;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
             rangeRing.SetActive(false);
         }
 
@@ -242,13 +257,85 @@ namespace Pathogen
 
             rangeRing.SetActive(showRing);
 
-            if (showRing && rangeRingRenderer != null)
+            if (showRing && rangeRingMaterial != null)
             {
-                bool hasChampionAggro = attackTarget != null
+                bool danger = attackTarget != null
                     && attackTarget.entityType == EntityType.Champion
                     && !attackTarget.IsDead;
-                rangeRingRenderer.material.color = hasChampionAggro ? rangeRingDanger : rangeRingSafe;
+
+                if (danger != lastDangerState)
+                {
+                    lastDangerState = danger;
+                    rangeRingMaterial.SetColor("_Color", danger ? rangeRingDanger : rangeRingSafe);
+                    rangeRingMaterial.SetFloat("_FillAlpha", danger ? 0.06f : 0.03f);
+                    rangeRingMaterial.SetFloat("_EdgeAlpha", danger ? 0.6f : 0.4f);
+                    rangeRingMaterial.SetFloat("_PulseSpeed", danger ? 1.2f : 0.5f);
+                    rangeRingMaterial.SetFloat("_PulseIntensity", danger ? 0.22f : 0.1f);
+                }
             }
+        }
+
+        // ─── MESH GENERATION ──────────────────────────────────────────
+
+        private static Mesh GenerateDiscMesh(int segments, int rings)
+        {
+            float maxRadius = 0.5f;
+            int vertCount = 1 + (rings + 1) * segments;
+            var vertices = new Vector3[vertCount];
+            var uvs = new Vector2[vertCount];
+
+            vertices[0] = Vector3.zero;
+            uvs[0] = new Vector2(1f, 0f);
+
+            for (int r = 0; r <= rings; r++)
+            {
+                float radius = (float)(r + 1) / (rings + 1);
+                for (int i = 0; i < segments; i++)
+                {
+                    int idx = 1 + r * segments + i;
+                    float angle = (float)i / segments * Mathf.PI * 2f;
+                    vertices[idx] = new Vector3(
+                        Mathf.Cos(angle) * radius * maxRadius,
+                        0f,
+                        Mathf.Sin(angle) * radius * maxRadius);
+                    uvs[idx] = new Vector2(1f - radius, 0f);
+                }
+            }
+
+            int triCount = segments * 3 + rings * segments * 6;
+            var triangles = new int[triCount];
+            int ti = 0;
+
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+                triangles[ti++] = 0;
+                triangles[ti++] = 1 + next;
+                triangles[ti++] = 1 + i;
+            }
+
+            for (int r = 0; r < rings; r++)
+            {
+                int ring0 = 1 + r * segments;
+                int ring1 = 1 + (r + 1) * segments;
+                for (int i = 0; i < segments; i++)
+                {
+                    int next = (i + 1) % segments;
+                    triangles[ti++] = ring0 + i;
+                    triangles[ti++] = ring0 + next;
+                    triangles[ti++] = ring1 + i;
+                    triangles[ti++] = ring0 + next;
+                    triangles[ti++] = ring1 + next;
+                    triangles[ti++] = ring1 + i;
+                }
+            }
+
+            var mesh = new Mesh();
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.uv = uvs;
+            mesh.RecalculateNormals();
+            return mesh;
         }
 
         // ─── PROJECTILE ────────────────────────────────────────────────
