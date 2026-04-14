@@ -12,9 +12,6 @@ namespace Pathogen
         [Header("Structure Settings")]
         public float detectionRange = 5f;
 
-        [Header("Target Priority")]
-        public bool prioritizeMinions = true;
-
         [Header("Escalating Damage")]
         public int trueDamageThreshold = 3;
         public float trueDamageMultiplier = 1.5f;
@@ -77,10 +74,12 @@ namespace Pathogen
                         lastTarget = attackTarget;
                     }
 
-                    float damage = consecutiveHits >= trueDamageThreshold
+                    // True damage escalation only applies to champions
+                    bool isChampion = attackTarget.entityType == EntityType.Champion;
+                    bool isTrueDmg = isChampion && consecutiveHits >= trueDamageThreshold;
+                    float damage = isTrueDmg
                         ? attackDamage * trueDamageMultiplier
                         : attackDamage;
-                    bool isTrueDmg = consecutiveHits >= trueDamageThreshold;
 
                     SpawnPoisonProjectile(attackTarget, damage, isTrueDmg);
                     structureAttackTimer = 1f / attackSpeed;
@@ -130,31 +129,22 @@ namespace Pathogen
                 aggroChampion = null;
             }
 
-            Entity bestMinion = null;
-            Entity bestChampion = null;
-            float closestMinionDist = float.MaxValue;
-            float closestChampDist = float.MaxValue;
+            // Target nearest enemy — first in range gets hit
+            Entity nearest = null;
+            float nearestDist = float.MaxValue;
 
             foreach (var enemy in enemies)
             {
                 if (enemy.IsDead) continue;
                 float dist = Vector3.Distance(transform.position, enemy.transform.position);
-
-                if (enemy.entityType == EntityType.Minion && dist < closestMinionDist)
+                if (dist < nearestDist)
                 {
-                    closestMinionDist = dist;
-                    bestMinion = enemy;
-                }
-                else if (enemy.entityType == EntityType.Champion && dist < closestChampDist)
-                {
-                    closestChampDist = dist;
-                    bestChampion = enemy;
+                    nearestDist = dist;
+                    nearest = enemy;
                 }
             }
 
-            attackTarget = (prioritizeMinions && bestMinion != null) ? bestMinion : bestChampion;
-            if (attackTarget == null)
-                attackTarget = bestMinion;
+            attackTarget = nearest;
         }
 
         // ─── RANGE RING ────────────────────────────────────────────────
@@ -204,9 +194,6 @@ namespace Pathogen
         private void SpawnPoisonProjectile(Entity target, float damage, bool isTrueDmg)
         {
             Vector3 spawnPos = transform.position + Vector3.up * 2f;
-            Vector3 toTarget = target.transform.position - transform.position;
-            toTarget.y = 0f;
-            Vector3 dir = toTarget.normalized;
 
             Color poisonColor = isTrueDmg
                 ? Color.white
@@ -220,21 +207,13 @@ namespace Pathogen
             projGO.transform.position = spawnPos;
             projGO.transform.localScale = Vector3.one * (isTrueDmg ? 0.8f : 0.6f);
 
+            // No collider needed — homing projectile hits via distance check
+            DestroyImmediate(projGO.GetComponent<SphereCollider>());
+
             var renderer = projGO.GetComponent<Renderer>();
             renderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             renderer.material.color = poisonColor;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-            DestroyImmediate(projGO.GetComponent<SphereCollider>());
-            var col = projGO.AddComponent<SphereCollider>();
-            col.isTrigger = true;
-            col.radius = 1f;
-
-            var rb = projGO.AddComponent<Rigidbody>();
-            rb.useGravity = false;
-            rb.isKinematic = false;
-            rb.linearDamping = 0f;
-            rb.angularDamping = 0f;
 
             var trail = projGO.AddComponent<TrailRenderer>();
             trail.startWidth = isTrueDmg ? 0.6f : 0.45f;
@@ -246,7 +225,7 @@ namespace Pathogen
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var proj = projGO.AddComponent<StructureProjectile>();
-            proj.Initialize(this, dir, damage, projectileSpeed, detectionRange + 5f, isTrueDmg);
+            proj.Initialize(this, target, damage, projectileSpeed, isTrueDmg);
         }
 
         // ─── DEATH ─────────────────────────────────────────────────────

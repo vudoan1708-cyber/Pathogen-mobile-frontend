@@ -129,7 +129,7 @@ namespace Pathogen
         public bool IsReady => tier != MutationTier.Locked && currentCooldown <= 0f;
         public bool IsUnlocked => tier != MutationTier.Locked;
 
-        public static readonly int[] TierCosts = { 0, 0, 300, 500, 500, 900 };
+        public static readonly int[] TierCosts = { 0, 0, 1200, 2000, 2000, 3600 };
 
         // Mutation bonuses
         public float bonusDamagePercent;
@@ -192,7 +192,7 @@ namespace Pathogen
 
                 case MutationTier.Base:
                     tier = MutationTier.Potency;
-                    bonusDamagePercent += 0.25f;
+                    bonusDamagePercent += 0.20f;
                     champion.omnivamp += 0.05f;
                     bonusOmnivamp += 0.05f;
                     champion.moveSpeed += 0.5f;
@@ -222,14 +222,98 @@ namespace Pathogen
                 case MutationTier.Alpha:
                 case MutationTier.Omega:
                     tier = MutationTier.Apex;
-                    bonusAllScaling += 0.40f;
-                    champion.attackDamage += 15f;
-                    champion.abilityPower += 15f;
+                    bonusAllScaling += 0.10f;
+                    champion.attackDamage += 25f;
+                    champion.abilityPower += 25f;
                     champion.moveSpeed += 0.6f;
                     break;
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Reverses the current branch (Alpha↔Omega). If at Apex, reverts to Potency
+        /// and requires re-buying the new branch + Apex (total: branch + apex cost).
+        /// Champion must have the full amount upfront.
+        /// Returns total cost charged, or -1 if cannot afford or not on a branch.
+        /// </summary>
+        public int ReverseBranch(Champion champion)
+        {
+            bool isAlpha = tier == MutationTier.Alpha;
+            bool isOmega = tier == MutationTier.Omega;
+            bool isApex = tier == MutationTier.Apex;
+
+            if (!isAlpha && !isOmega && !isApex) return -1;
+
+            int branchCost = TierCosts[3]; // 2000
+            int apexCost = TierCosts[5];   // 3600
+            int totalCost = isApex ? branchCost + apexCost : branchCost;
+
+            if (champion.bioCurrency < totalCost) return -1;
+
+            // If at Apex, revert Apex bonuses first
+            if (isApex)
+            {
+                bonusAllScaling -= 0.10f;
+                champion.attackDamage -= 25f;
+                champion.abilityPower -= 25f;
+                champion.moveSpeed -= 0.6f;
+                isAlpha = hasBleed;
+                isOmega = hasHealOnCast;
+            }
+
+            // Undo current branch
+            if (isAlpha)
+            {
+                bonusCritDamage -= 0.15f;
+                champion.critChance -= 0.10f;
+                hasBleed = false;
+                champion.moveSpeed -= 0.4f;
+            }
+            else if (isOmega)
+            {
+                bonusDamageReflect -= 0.10f;
+                champion.damageReflection -= 0.10f;
+                bonusMagicResist -= 20f;
+                champion.magicResist -= 20f;
+                hasHealOnCast = false;
+                champion.moveSpeed -= 0.4f;
+            }
+
+            champion.SpendBioCurrency(totalCost);
+
+            // Apply opposite branch
+            if (isAlpha)
+            {
+                tier = MutationTier.Omega;
+                bonusDamageReflect += 0.10f;
+                champion.damageReflection += 0.10f;
+                bonusMagicResist += 20f;
+                champion.magicResist += 20f;
+                hasHealOnCast = true;
+                champion.moveSpeed += 0.4f;
+            }
+            else
+            {
+                tier = MutationTier.Alpha;
+                bonusCritDamage += 0.15f;
+                champion.critChance += 0.10f;
+                hasBleed = true;
+                champion.moveSpeed += 0.4f;
+            }
+
+            // If was Apex, re-apply Apex on the new branch
+            if (isApex)
+            {
+                tier = MutationTier.Apex;
+                bonusAllScaling += 0.10f;
+                champion.attackDamage += 25f;
+                champion.abilityPower += 25f;
+                champion.moveSpeed += 0.6f;
+            }
+
+            return totalCost;
         }
 
         private int GetNextTierIndex()

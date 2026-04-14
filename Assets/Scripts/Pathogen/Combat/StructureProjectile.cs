@@ -2,58 +2,56 @@ using UnityEngine;
 
 namespace Pathogen
 {
+    /// <summary>
+    /// Homing structure projectile — locks onto target and tracks until hit.
+    /// Cannot be dodged.
+    /// </summary>
     public class StructureProjectile : MonoBehaviour
     {
         private Entity owner;
-        private Vector3 direction;
+        private Entity target;
         private float damage;
         private float speed;
-        private float maxRange;
         private bool isTrueDamage;
-        private Vector3 startPosition;
-        private Rigidbody rb;
+        private float lifetime;
 
-        public void Initialize(Entity owner, Vector3 direction, float damage,
-            float speed, float maxRange, bool isTrueDamage)
+        public void Initialize(Entity owner, Entity target, float damage,
+            float speed, bool isTrueDamage)
         {
             this.owner = owner;
-            this.direction = direction.normalized;
+            this.target = target;
             this.damage = damage;
             this.speed = speed;
-            this.maxRange = maxRange;
             this.isTrueDamage = isTrueDamage;
-            this.startPosition = transform.position;
+            this.lifetime = 5f;
         }
 
-        void Start()
+        void Update()
         {
-            rb = GetComponent<Rigidbody>();
-        }
-
-        void FixedUpdate()
-        {
-            if (rb != null)
-                rb.MovePosition(rb.position + direction * speed * Time.fixedDeltaTime);
-            else
-                transform.position += direction * speed * Time.deltaTime;
-
-            if (Vector3.Distance(startPosition, transform.position) > maxRange)
+            lifetime -= Time.deltaTime;
+            if (lifetime <= 0f || target == null || target.IsDead)
+            {
                 Destroy(gameObject);
-        }
+                return;
+            }
 
-        void OnTriggerEnter(Collider other)
-        {
-            var entity = other.GetComponent<Entity>();
-            if (entity == null || entity.IsDead) return;
-            if (owner != null && entity.team == owner.team) return;
-            if (entity.entityType == EntityType.Structure) return;
+            Vector3 targetPos = target.transform.position + Vector3.up * 0.5f;
+            Vector3 toTarget = targetPos - transform.position;
+            float step = speed * Time.deltaTime;
 
-            if (isTrueDamage)
-                entity.TakeRawDamage(damage);
-            else
-                entity.TakeDamage(damage, false, owner);
+            if (toTarget.sqrMagnitude <= step * step)
+            {
+                // Hit
+                if (isTrueDamage)
+                    target.TakeRawDamage(damage);
+                else
+                    target.TakeDamage(damage, false, owner);
 
-            Destroy(gameObject);
+                Destroy(gameObject);
+                return;
+            }
+
+            transform.position += toTarget.normalized * step;
         }
     }
 }

@@ -119,15 +119,15 @@ namespace Pathogen
 
             // Virus structures (Infection Nodes)
             CreateStructure("InfectionNode_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
-                           1500f, 80f, 10f, new Color(0.8f, 0.15f, 0.15f));
+                           1500f, 80f, 7f, new Color(0.8f, 0.15f, 0.15f));
             CreateStructure("InfectionNode_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
-                           2000f, 100f, 12f, new Color(0.6f, 0.1f, 0.1f));
+                           2000f, 100f, 9f, new Color(0.6f, 0.1f, 0.1f));
 
             // Immune structures (Sentinels)
             CreateStructure("Sentinel_1", Team.Immune, new Vector3(half * 0.4f, 0f, -3f),
-                           1500f, 80f, 10f, new Color(0.15f, 0.4f, 0.8f));
+                           1500f, 80f, 7f, new Color(0.15f, 0.4f, 0.8f));
             CreateStructure("Sentinel_2", Team.Immune, new Vector3(half * 0.75f, 0f, -3f),
-                           2000f, 100f, 12f, new Color(0.1f, 0.3f, 0.6f));
+                           2000f, 100f, 9f, new Color(0.1f, 0.3f, 0.6f));
         }
 
         private void CreateStructure(string name, Team team, Vector3 position,

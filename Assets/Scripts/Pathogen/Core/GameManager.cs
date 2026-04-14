@@ -319,7 +319,7 @@ namespace Pathogen
         /// <summary>
         /// Distribute XP from a kill to nearby teammates.
         /// </summary>
-        public void DistributeXP(Vector3 killPosition, Team team, float totalXP)
+        public void DistributeXP(Vector3 killPosition, Team team, float totalXP, bool showText = true)
         {
             var nearbyChampions = new List<Champion>();
             float rangeSqr = goldShareRange * goldShareRange;
@@ -338,10 +338,14 @@ namespace Pathogen
             foreach (var champ in nearbyChampions)
             {
                 champ.AddXP(xpPerChampion);
-                FloatingText.Spawn(
-                    champ.transform.position + Vector3.up * 1.8f,
-                    $"+{Mathf.FloorToInt(xpPerChampion)} XP",
-                    new Color(0.4f, 0.7f, 1f));
+                if (showText)
+                {
+                    float textY = champ.championHeight + 2.5f;
+                    FloatingText.Spawn(
+                        champ.transform.position + Vector3.up * textY,
+                        $"+{Mathf.FloorToInt(xpPerChampion)} XP",
+                        new Color(0.4f, 0.7f, 1f));
+                }
             }
         }
 

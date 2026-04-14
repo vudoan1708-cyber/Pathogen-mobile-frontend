@@ -118,6 +118,20 @@ namespace Pathogen
             if (damageFlash != null)
                 damageFlash.Flash();
 
+            // Floating damage number — show when a champion is involved (deals or takes)
+            bool championInvolved = entityType == EntityType.Champion
+                || (source != null && source.entityType == EntityType.Champion);
+            if (championInvolved)
+            {
+                Color dmgColor = isMagic
+                    ? new Color(0.7f, 0.3f, 1f, 0.7f)
+                    : new Color(1f, 0.25f, 0.2f, 0.7f);
+                FloatingText.Spawn(
+                    transform.position + Vector3.up * 1.5f,
+                    Mathf.FloorToInt(finalDamage).ToString(),
+                    dmgColor, 0.7f);
+            }
+
             // Notify AI controller of hit for disengage logic
             if (entityType == EntityType.Champion)
             {
@@ -266,16 +280,20 @@ namespace Pathogen
                 case EntityType.Champion: gold = 300f; xp = 200f; break;
                 case EntityType.Structure: gold = 150f; xp = 100f; break;
             }
+            bool isPlayerTeam = killer.GetComponent<PlayerController>() != null;
             if (gold > 0f)
             {
                 gm.DistributeGold(transform.position, killer.team, gold);
-                FloatingText.Spawn(
-                    transform.position,
-                    $"+{Mathf.FloorToInt(gold)}",
-                    new Color(1f, 0.85f, 0.2f));
+                if (isPlayerTeam)
+                {
+                    FloatingText.Spawn(
+                        transform.position,
+                        $"+{Mathf.FloorToInt(gold)}",
+                        new Color(1f, 0.85f, 0.2f));
+                }
             }
             if (xp > 0f)
-                gm.DistributeXP(transform.position, killer.team, xp);
+                gm.DistributeXP(transform.position, killer.team, xp, isPlayerTeam);
         }
 
         public bool CanAttack()
