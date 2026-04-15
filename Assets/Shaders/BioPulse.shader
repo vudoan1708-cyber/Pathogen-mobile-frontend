@@ -2,70 +2,46 @@ Shader "Pathogen/BioPulse"
 {
     Properties
     {
-        _Color ("Color", Color) = (0.3, 0.5, 0.8, 1)
-        _FillAlpha ("Fill Alpha", Range(0, 0.3)) = 0.06
-        _EdgeAlpha ("Edge Alpha", Range(0, 1)) = 0.7
-        _EdgeWidth ("Edge Width", Range(0.01, 0.3)) = 0.07
-        _EdgeSoftness ("Edge Softness", Range(0.005, 0.1)) = 0.025
-        _PulseSpeed ("Pulse Speed", Range(0.1, 3)) = 0.7
-        _PulseIntensity ("Pulse Intensity", Range(0, 0.4)) = 0.18
-        _NoiseScale ("Edge Noise Scale", Range(1, 20)) = 5
-        _NoiseAmount ("Edge Noise Amount", Range(0, 0.04)) = 0.012
-        _FillNoiseScale ("Fill Noise Scale", Range(1, 30)) = 10
-        _FillNoiseAmount ("Fill Noise Amount", Range(0, 0.6)) = 0.35
+        _Color          ("Color",            Color)          = (0.3, 0.5, 0.8, 1)
+        _FillAlpha      ("Fill Alpha",       Range(0, 0.3))  = 0.06
+        _EdgeAlpha      ("Edge Alpha",       Range(0, 1))    = 0.7
+        _EdgeWidth      ("Edge Width",       Range(0.01, 0.3)) = 0.07
+        _EdgeSoftness   ("Edge Softness",    Range(0.005, 0.1)) = 0.025
+        _PulseSpeed     ("Pulse Speed",      Range(0.1, 3))  = 0.7
+        _PulseIntensity ("Pulse Intensity",  Range(0, 0.4))  = 0.18
+        _NoiseScale     ("Edge Noise Scale", Range(1, 20))   = 5
+        _NoiseAmount    ("Edge Noise Amt",   Range(0, 0.04)) = 0.012
+        _FillNoiseScale ("Fill Noise Scale", Range(1, 30))   = 10
+        _FillNoiseAmount("Fill Noise Amt",   Range(0, 0.6))  = 0.35
+        _ShowArrow      ("Show Arrow",       Float)          = 0
+        _ArrowStart     ("Arrow Start V",    Range(0.3, 0.95)) = 0.6
     }
 
     SubShader
     {
-        Tags
-        {
-            "RenderType" = "Transparent"
-            "Queue" = "Transparent+10"
-            "RenderPipeline" = "UniversalPipeline"
-            "IgnoreProjector" = "True"
-        }
+        Tags { "RenderType"="Transparent" "Queue"="Transparent+10" "RenderPipeline"="UniversalPipeline" "IgnoreProjector"="True" }
 
         Pass
         {
             Name "BioPulse"
             Blend SrcAlpha OneMinusSrcAlpha
-            ZWrite Off
-            ZTest LEqual
-            Cull Off
-            Offset -1, -1
+            ZWrite Off  ZTest LEqual  Cull Off  Offset -1, -1
 
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
-                float3 positionWS : TEXCOORD1;
-            };
+            struct Attributes { float4 pos : POSITION; float2 uv : TEXCOORD0; float2 uv2 : TEXCOORD1; };
+            struct Varyings  { float4 cs : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; float2 raw : TEXCOORD2; };
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _Color;
-                float _FillAlpha;
-                float _EdgeAlpha;
-                float _EdgeWidth;
-                float _EdgeSoftness;
-                float _PulseSpeed;
-                float _PulseIntensity;
-                float _NoiseScale;
-                float _NoiseAmount;
-                float _FillNoiseScale;
-                float _FillNoiseAmount;
+                float _FillAlpha, _EdgeAlpha, _EdgeWidth, _EdgeSoftness;
+                float _PulseSpeed, _PulseIntensity;
+                float _NoiseScale, _NoiseAmount, _FillNoiseScale, _FillNoiseAmount;
+                float _ShowArrow, _ArrowStart;
             CBUFFER_END
 
             // ─── NOISE ──────────────────────────────────────────────────
@@ -79,93 +55,80 @@ Shader "Pathogen/BioPulse"
 
             float valueNoise(float2 p)
             {
-                float2 i = floor(p);
-                float2 f = frac(p);
+                float2 i = floor(p), f = frac(p);
                 f = f * f * (3.0 - 2.0 * f);
-
-                float a = hash21(i);
-                float b = hash21(i + float2(1.0, 0.0));
-                float c = hash21(i + float2(0.0, 1.0));
-                float d = hash21(i + float2(1.0, 1.0));
-
-                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+                return lerp(
+                    lerp(hash21(i), hash21(i + float2(1, 0)), f.x),
+                    lerp(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), f.x), f.y);
             }
 
             float fbm(float2 p)
             {
-                float value = 0.0;
-                float amp = 0.5;
-                for (int i = 0; i < 3; i++)
-                {
-                    value += valueNoise(p) * amp;
-                    p *= 2.1;
-                    amp *= 0.45;
-                }
-                return value;
+                float v = 0.0, amp = 0.5;
+                for (int i = 0; i < 3; i++) { v += valueNoise(p) * amp; p *= 2.1; amp *= 0.45; }
+                return v;
             }
 
-            // ─── VERTEX ─────────────────────────────────────────────────
+            // ─── VERTEX / FRAGMENT ──────────────────────────────────────
 
-            Varyings vert(Attributes input)
+            Varyings vert(Attributes i)
             {
-                Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
-                output.uv = input.uv;
-                return output;
+                Varyings o;
+                o.cs  = TransformObjectToHClip(i.pos.xyz);
+                o.ws  = TransformObjectToWorld(i.pos.xyz);
+                o.uv  = i.uv;
+                o.raw = i.uv2;
+                return o;
             }
 
-            // ─── FRAGMENT ───────────────────────────────────────────────
-
-            float4 frag(Varyings input) : SV_Target
+            float4 frag(Varyings i) : SV_Target
             {
-                // UV.x = edge proximity: 0 at any edge, 1 deep inside
-                float edgeProx = input.uv.x;
+                float edgeProx = i.uv.x;
 
-                // Organic micro-variation on edge boundary
-                float2 noiseCoord = input.positionWS.xz * _NoiseScale;
-                float edgeNoise = fbm(noiseCoord + _Time.y * 0.25) * _NoiseAmount;
-
-                // Edge band with soft falloff
-                float edgeThreshold = _EdgeWidth + edgeNoise;
-                float edgeMask = 1.0 - smoothstep(
-                    edgeThreshold - _EdgeSoftness,
-                    edgeThreshold + _EdgeSoftness,
-                    edgeProx);
-
-                // Soft outer dissolve at the very boundary
+                // Edge noise + band
+                float noise = fbm(i.ws.xz * _NoiseScale + _Time.y * 0.25) * _NoiseAmount;
+                float threshold = _EdgeWidth + noise;
+                float edgeMask = 1.0 - smoothstep(threshold - _EdgeSoftness, threshold + _EdgeSoftness, edgeProx);
                 float outerFade = smoothstep(0.0, 0.012, edgeProx);
 
-                // Bio-pulse: radial wave expanding from center to edge
-                float pulsePhase = edgeProx * 5.0 - _Time.y * _PulseSpeed;
-                float pulse = sin(pulsePhase * 6.28318);
-                pulse = pulse * 0.5 + 0.5;
-                pulse = pow(pulse, 5.0); // sharpen into a narrow traveling ring
-                pulse *= _PulseIntensity;
-                // Fade pulse near edge (edge glow takes over there)
-                pulse *= smoothstep(0.0, _EdgeWidth * 2.5, edgeProx);
-                // Fade pulse near center
-                pulse *= smoothstep(1.0, 0.6, edgeProx);
+                // Pulse wave
+                float pulse = pow(sin((edgeProx * 5.0 - _Time.y * _PulseSpeed) * 6.28318) * 0.5 + 0.5, 5.0)
+                    * _PulseIntensity
+                    * smoothstep(0.0, _EdgeWidth * 2.5, edgeProx)
+                    * smoothstep(1.0, 0.6, edgeProx);
 
-                // Organic fill — subtle cellular pattern
-                float2 fillCoord = input.positionWS.xz * _FillNoiseScale;
-                float fillNoise = fbm(fillCoord + _Time.y * 0.12);
-                float fillPattern = lerp(1.0 - _FillNoiseAmount, 1.0, fillNoise);
+                // Fill noise
+                float fillPattern = lerp(1.0 - _FillNoiseAmount, 1.0, fbm(i.ws.xz * _FillNoiseScale + _Time.y * 0.12));
 
-                // ─── COMPOSE ────────────────────────────────────────────
-
-                // Alpha
-                float fillA = _FillAlpha * fillPattern;
-                float a = lerp(fillA, _EdgeAlpha, edgeMask);
-                a += pulse * 0.12;
+                // Compose
+                float a = lerp(_FillAlpha * fillPattern, _EdgeAlpha, edgeMask) + pulse * 0.12;
                 a *= outerFade;
 
-                // Color
                 float3 col = _Color.rgb;
-                // Edge gets brighter
-                col = lerp(col, col * 1.5 + 0.08, edgeMask);
-                // Pulse adds subtle brightness
-                col += pulse * 0.12;
+                col = lerp(col, col * 1.5 + 0.08, edgeMask) + pulse * 0.12;
+
+                if (_ShowArrow > 0.5)
+                {
+                    float lateral = abs(i.raw.x - 0.5);
+                    float rawV = i.raw.y;
+                    float bodyFade = smoothstep(0.0, 0.06, rawV) * smoothstep(1.0, 0.92, rawV);
+
+                    // 2 parallel guide lines along the body (semi-transparent)
+                    float line1 = 1.0 - smoothstep(0.0, 0.018, abs(lateral - 0.15));
+                    float line2 = 1.0 - smoothstep(0.0, 0.018, abs(lateral - 0.35));
+                    float lines = max(line1, line2) * bodyFade * step(rawV, _ArrowStart);
+                    col += _Color.rgb * 0.6 * lines * 0.4;
+                    a = max(a, lines * 0.3);
+
+                    // Bold bright chevron at the tip
+                    float tipMask = smoothstep(_ArrowStart - 0.05, _ArrowStart, rawV)
+                                  * smoothstep(1.0, 0.92, rawV);
+                    float cv = rawV + lateral * 0.6;
+                    float chevron = 1.0 - smoothstep(0.0, 0.03, abs(frac(cv * 2.5) - 0.5));
+                    chevron *= tipMask;
+                    col += (_Color.rgb * 1.6 + 0.15) * chevron * 0.8;
+                    a = max(a, chevron * 0.75);
+                }
 
                 return float4(col, saturate(a));
             }

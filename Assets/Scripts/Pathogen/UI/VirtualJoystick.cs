@@ -5,12 +5,6 @@ using UnityEngine.UI;
 
 namespace Pathogen
 {
-    /// <summary>
-    /// Dual-touch mobile controls:
-    /// - LEFT side: movement joystick. Hidden until touched, appears at finger position.
-    /// - RIGHT side: temporary camera pan. Drag to look around, release snaps back.
-    /// Falls back to mouse input in editor/simulator when no touchscreen is available.
-    /// </summary>
     public class VirtualJoystick : MonoBehaviour
     {
         [Header("References")]
@@ -34,11 +28,9 @@ namespace Pathogen
         private Canvas canvas;
         private Image touchAreaImage;
         private Image handleImage;
-        private int leftFingerId = -1;
-        private int rightFingerId = -1;
         private Vector2 leftTouchOrigin;
         private Vector2 rightTouchPrev;
-
+        private bool rightWasActive;
 
         void Start()
         {
@@ -48,7 +40,6 @@ namespace Pathogen
 
             canvas = GetComponentInParent<Canvas>();
 
-            // Cache Image components to toggle visibility without deactivating the GameObject
             touchAreaImage = GetComponent<Image>();
             if (handle != null) handleImage = handle.GetComponent<Image>();
             SetJoystickVisible(false);
@@ -64,80 +55,88 @@ namespace Pathogen
                 ProcessTouches(touchscreen);
         }
 
-        // ─── TOUCH INPUT ────────────────────────────────────────────────
-
         private void ProcessTouches(Touchscreen touchscreen)
         {
+            bool leftFound = false;
+            Vector2 leftPos = Vector2.zero;
+            bool leftBegan = false;
+
+            bool rightFound = false;
+            Vector2 rightPos = Vector2.zero;
+            bool rightBegan = false;
+
             foreach (var touch in touchscreen.touches)
             {
                 if (!touch.press.isPressed) continue;
 
-                int id = touch.touchId.ReadValue();
                 Vector2 pos = touch.position.ReadValue();
                 var phase = touch.phase.ReadValue();
                 bool isLeft = pos.x < Screen.width * screenSplit;
 
-                if (phase == UnityEngine.InputSystem.TouchPhase.Began)
+                if (isLeft && !leftFound)
                 {
-                    if (isLeft && leftFingerId < 0)
-                    {
-                        leftFingerId = id;
-                        leftTouchOrigin = pos;
-                        IsDragging = true;
-                        Direction = Vector2.zero;
-                        SetJoystickVisible(true);
-                        MoveJoystickToScreen(pos);
-                        if (handle != null) handle.anchoredPosition = Vector2.zero;
-                    }
-                    else if (!isLeft && rightFingerId < 0 && !IsOverUI(id))
-                    {
-                        // Only pan camera if touch is NOT on a UI button (skills, shop, etc.)
-                        rightFingerId = id;
-                        rightTouchPrev = pos;
-                    }
+                    leftFound = true;
+                    leftPos = pos;
+                    if (phase == UnityEngine.InputSystem.TouchPhase.Began)
+                        leftBegan = true;
                 }
-
-                if (id == leftFingerId)
-                    UpdateJoystickDirection(pos, leftTouchOrigin);
-
-                if (id == rightFingerId)
+                else if (!isLeft && !rightFound)
                 {
-                    IsRightTouchActive = true;
-                    RightTouchDelta = (pos - rightTouchPrev) * cameraPanSpeed;
-                    rightTouchPrev = pos;
+                    if (phase == UnityEngine.InputSystem.TouchPhase.Began && !IsOverUI(touch.touchId.ReadValue()))
+                    {
+                        rightFound = true;
+                        rightPos = pos;
+                        rightBegan = true;
+                    }
+                    else if (rightWasActive)
+                    {
+                        rightFound = true;
+                        rightPos = pos;
+                    }
                 }
             }
 
-            CheckTouchRelease(touchscreen);
+            // Left joystick
+            if (leftFound)
+            {
+                if (leftBegan || !IsDragging)
+                {
+                    leftTouchOrigin = leftPos;
+                    IsDragging = true;
+                    Direction = Vector2.zero;
+                    SetJoystickVisible(true);
+                    MoveJoystickToScreen(leftPos);
+                    if (handle != null) handle.anchoredPosition = Vector2.zero;
+                }
+                UpdateJoystickDirection(leftPos, leftTouchOrigin);
+            }
+            else if (IsDragging)
+            {
+                IsDragging = false;
+                Direction = Vector2.zero;
+                if (handle != null) handle.anchoredPosition = Vector2.zero;
+                SetJoystickVisible(false);
+            }
+
+            // Right camera pan
+            if (rightFound)
+            {
+                if (rightBegan)
+                    rightTouchPrev = rightPos;
+
+                IsRightTouchActive = true;
+                RightTouchDelta = (rightPos - rightTouchPrev) * cameraPanSpeed;
+                rightTouchPrev = rightPos;
+            }
+            else if (rightWasActive)
+            {
+                IsRightTouchActive = false;
+                RightTouchDelta = Vector2.zero;
+                RightTouchReleased = true;
+            }
+
+            rightWasActive = rightFound;
         }
-
-        private void CheckTouchRelease(Touchscreen touchscreen)
-        {
-            bool leftStillDown = false;
-            bool rightStillDown = false;
-
-            foreach (var touch in touchscreen.touches)
-            {
-                if (!touch.press.isPressed) continue;
-                int id = touch.touchId.ReadValue();
-                if (id == leftFingerId) leftStillDown = true;
-                if (id == rightFingerId) rightStillDown = true;
-            }
-
-            if (!leftStillDown && leftFingerId >= 0)
-            {
-                leftFingerId = -1;
-                ReleaseLeft();
-            }
-
-            if (!rightStillDown && rightFingerId >= 0)
-            {
-                rightFingerId = -1;
-                ReleaseRight();
-            }
-        }
-
-        // ─── SHARED ─────────────────────────────────────────────────────
 
         private void UpdateJoystickDirection(Vector2 currentPos, Vector2 origin)
         {
@@ -162,29 +161,10 @@ namespace Pathogen
                 handle.anchoredPosition = normalized * handleRange;
         }
 
-        private void ReleaseLeft()
-        {
-            IsDragging = false;
-            Direction = Vector2.zero;
-            if (handle != null) handle.anchoredPosition = Vector2.zero;
-            SetJoystickVisible(false);
-        }
-
-        private void ReleaseRight()
-        {
-            IsRightTouchActive = false;
-            RightTouchDelta = Vector2.zero;
-            RightTouchReleased = true;
-        }
-
         private void MoveJoystickToScreen(Vector2 screenPos)
         {
             if (touchArea == null || canvas == null) return;
 
-            RectTransform canvasRect = canvas.GetComponent<RectTransform>();
-            Vector2 canvasSize = canvasRect.sizeDelta;
-
-            // Convert screen position to canvas coordinates with bottom-left anchor + center pivot
             float scaleFactor = canvas.scaleFactor;
             touchArea.anchoredPosition = new Vector2(
                 screenPos.x / scaleFactor,

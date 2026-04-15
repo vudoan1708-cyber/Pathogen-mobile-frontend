@@ -173,6 +173,7 @@ Shader "Pathogen/UIHealthGradient"
                 col += yGlow * step(sdf, 0.0); // only inside shape
 
                 // ── Alpha: shape mask × vertex color ──
+                col *= i.color.rgb;
                 float alpha = shapeMask * i.color.a;
 
                 // ── UI clip rect ──

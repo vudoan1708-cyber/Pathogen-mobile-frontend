@@ -22,17 +22,15 @@ namespace Pathogen
         [Header("Hit Tracking")]
         public int maxConsecutiveHits = 4;
 
-        private enum AIState { Patrol, Farm, Fight, Retreat, Kite }
+        private enum AIState { Patrol, Farm, Fight, Retreat, Kite, Recall, HealAtBase }
         private AIState state = AIState.Patrol;
         private Entity currentTarget;
         private float skillCooldownTimer;
 
-        // Hit tracking — disengage after taking too many hits in a row
         private int consecutiveHitsTaken;
         private float hitResetTimer;
         private const float HitResetDelay = 2f;
 
-        // Kite state — back off briefly after max hits
         private float kiteTimer;
         private const float KiteDuration = 1.5f;
 
@@ -40,9 +38,14 @@ namespace Pathogen
         {
             champion = GetComponent<Champion>();
 
-            // AI auto-allocates skill points immediately
             champion.OnSkillPointsChanged += _ => AutoAllocateSkillPoints();
+            champion.OnRecallCompleted += OnRecallCompleted;
             AutoAllocateSkillPoints();
+        }
+
+        private void OnRecallCompleted()
+        {
+            state = AIState.HealAtBase;
         }
 
         /// <summary>
@@ -127,16 +130,31 @@ namespace Pathogen
 
         private void UpdateState()
         {
+            if (champion.isRecalling)
+            {
+                state = AIState.Recall;
+                return;
+            }
+
+            if (state == AIState.HealAtBase)
+            {
+                float healedPercent = champion.currentHealth / champion.maxHealth;
+                if (healedPercent < 0.9f)
+                    return;
+
+                state = AIState.Patrol;
+                currentPatrolIndex = 0;
+                return;
+            }
+
             float healthPercent = champion.currentHealth / champion.maxHealth;
 
-            // Forced retreat at critical health
             if (healthPercent < retreatHealthPercent)
             {
                 state = AIState.Retreat;
                 return;
             }
 
-            // Disengage after taking too many consecutive hits
             if (consecutiveHitsTaken >= maxConsecutiveHits && state == AIState.Fight)
             {
                 state = AIState.Kite;
@@ -145,7 +163,6 @@ namespace Pathogen
                 return;
             }
 
-            // Currently kiting — stay in kite until timer expires
             if (state == AIState.Kite && kiteTimer > 0f)
                 return;
 
@@ -158,7 +175,6 @@ namespace Pathogen
 
                 if (myHP < enemyHP - 0.15f)
                 {
-                    // Significantly lower health — play cautious, farm instead if possible
                     var minion = FindEnemyMinion();
                     if (minion != null)
                     {
@@ -166,12 +182,10 @@ namespace Pathogen
                         state = AIState.Farm;
                         return;
                     }
-                    // No minions, just keep distance
                     state = AIState.Retreat;
                     return;
                 }
 
-                // Health is comparable or we're healthier — fight
                 currentTarget = enemyChamp;
                 state = AIState.Fight;
                 return;
@@ -229,6 +243,8 @@ namespace Pathogen
                 case AIState.Fight: FightTarget(); break;
                 case AIState.Retreat: Retreat(); break;
                 case AIState.Kite: Kite(); break;
+                case AIState.Recall: break; // Stand still while channeling
+                case AIState.HealAtBase: break; // Wait for Base.cs regen
             }
         }
 
@@ -297,7 +313,16 @@ namespace Pathogen
             {
                 consecutiveHitsTaken = 0;
                 state = AIState.Patrol;
+                return;
             }
+
+            if (healthPercent < retreatHealthPercent && !HasNearbyEnemyChampion())
+                champion.StartRecall();
+        }
+
+        private bool HasNearbyEnemyChampion()
+        {
+            return FindEnemyChampion() != null;
         }
 
         private void Kite()
@@ -353,6 +378,8 @@ namespace Pathogen
         private void MoveInDirection(Vector3 dir)
         {
             if (champion.isDashing) return;
+            if (champion.isRecalling) champion.CancelRecall();
+
             dir = ChampionSteerAroundObstacles(dir);
             transform.position += dir * champion.moveSpeed * Time.deltaTime;
         }

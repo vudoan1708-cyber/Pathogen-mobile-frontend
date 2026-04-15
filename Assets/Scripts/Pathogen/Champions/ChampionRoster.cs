@@ -50,7 +50,7 @@ namespace Pathogen
                         description = "Fire a toxic projectile that damages the first enemy hit.",
                         type = SkillType.Projectile,
                         baseDamage = 150f, cooldown = 4f, manaCost = 40f,
-                        range = 12f, projectileSpeed = 14f, isMagicDamage = true,
+                        range = 6f, projectileSpeed = 14f, isMagicDamage = true,
                         piercing = ProjectilePiercing.StopOnFirst,
                         indicatorShape = IndicatorShape.Rectangle, skillWidth = 1.2f,
                         visuals = new SkillVisuals
@@ -145,7 +145,7 @@ namespace Pathogen
                         description = "Fire an antibody projectile that damages the first enemy hit.",
                         type = SkillType.Projectile,
                         baseDamage = 150f, cooldown = 4f, manaCost = 35f,
-                        range = 13f, projectileSpeed = 16f, isMagicDamage = true,
+                        range = 6f, projectileSpeed = 16f, isMagicDamage = true,
                         piercing = ProjectilePiercing.PierceMinions,
                         indicatorShape = IndicatorShape.Rectangle, skillWidth = 1f,
                         visuals = new SkillVisuals

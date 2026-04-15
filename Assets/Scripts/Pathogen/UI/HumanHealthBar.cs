@@ -180,10 +180,18 @@ namespace Pathogen
             barBGRT.anchorMax = new Vector2(1f, BarAnchorMax);
             barBGRT.offsetMin = Vector2.zero;
             barBGRT.offsetMax = Vector2.zero;
-            barBG.AddComponent<Image>().color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
+            var healthShader = Shader.Find("Pathogen/UIHealthGradient");
 
-            // Gradient fill — shader handles red→yellow→green + organic noise + pulse
-            var gradientMat = new Material(Shader.Find("Pathogen/UIHealthGradient"));
+            var bgMat = new Material(healthShader);
+            bgMat.SetFloat("_Roundness", 0.08f);
+            bgMat.SetFloat("_PulseIntensity", 0f);
+            bgMat.SetFloat("_NoiseAmount", 0f);
+            bgMat.SetFloat("_EdgeGlow", 0f);
+            var bgImg = barBG.AddComponent<Image>();
+            bgImg.material = bgMat;
+            bgImg.color = new Color(0.28f, 0.28f, 0.3f, 0.9f);
+
+            var gradientMat = new Material(healthShader);
 
             var fillGO = CreateRect(barBG.transform, "GradientFill");
             var fillRt = fillGO.GetComponent<RectTransform>();

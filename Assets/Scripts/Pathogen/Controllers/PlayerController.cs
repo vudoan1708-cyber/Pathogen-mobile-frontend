@@ -37,8 +37,6 @@ namespace Pathogen
         // Range indicator
         private GameObject rangeIndicator;
         private Renderer rangeIndicatorRenderer;
-        private static readonly Color rangeInRange = new Color(0.3f, 0.5f, 0.8f, 0.25f);
-        private static readonly Color rangeOutOfRange = new Color(1f, 0.3f, 0.3f, 0.3f);
         private float rangeFlashTimer;
         private bool rangeHeldOpen;
 
@@ -117,7 +115,6 @@ namespace Pathogen
                 return;
             }
 
-            ShowAttackRange(true, 0.3f);
             aimingSkillIndex = skillIndex;
 
             if (aimIndicator != null)
@@ -132,7 +129,6 @@ namespace Pathogen
                 aimIndicator.SetCancelTint(false);
                 aimIndicator.Hide();
             }
-            ShowAttackRange(false);
         }
 
         public void SetAimCancelTint(bool cancelling)
@@ -273,32 +269,38 @@ namespace Pathogen
 
         private void CreateRangeIndicator()
         {
-            rangeIndicator = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            rangeIndicator.name = "RangeIndicator";
-            rangeIndicator.transform.localScale = new Vector3(1f, 0.01f, 1f);
-            DestroyImmediate(rangeIndicator.GetComponent<CapsuleCollider>());
-            rangeIndicatorRenderer = rangeIndicator.GetComponent<Renderer>();
-            rangeIndicatorRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            rangeIndicatorRenderer.material.color = rangeInRange;
+            rangeIndicator = new GameObject("RangeIndicator");
+            var filter = rangeIndicator.AddComponent<MeshFilter>();
+            filter.sharedMesh = SkillAimIndicator.SharedRingMesh;
+
+            var shader = Shader.Find("Pathogen/BioPulse");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            var mat = new Material(shader);
+            mat.SetColor("_Color", new Color(0.75f, 0.85f, 1f));
+            mat.SetFloat("_FillAlpha", 0f);
+            mat.SetFloat("_EdgeAlpha", 0.45f);
+            mat.SetFloat("_PulseIntensity", 0f);
+            mat.renderQueue = 3010;
+
+            rangeIndicatorRenderer = rangeIndicator.AddComponent<MeshRenderer>();
+            rangeIndicatorRenderer.material = mat;
             rangeIndicatorRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rangeIndicatorRenderer.receiveShadows = false;
             rangeIndicator.SetActive(false);
         }
 
-        /// <summary>
-        /// Shows or hides the attack range indicator.
-        /// When timer > 0, the range auto-hides after that duration.
-        /// When timer == 0, the range stays until explicitly hidden with show=false.
-        /// </summary>
         public void ShowAttackRange(bool show, float timer = 0f)
         {
             if (rangeIndicator == null || champion == null) return;
 
             if (show)
             {
-                float range = champion.attackRange * 2f;
-                rangeIndicator.transform.localScale = new Vector3(range, 0.01f, range);
+                float diameter = champion.attackRange * 2f;
+                rangeIndicator.transform.localScale = new Vector3(diameter, diameter, diameter);
+                rangeIndicator.transform.position = new Vector3(
+                    transform.position.x, 0.05f, transform.position.z);
                 rangeIndicator.SetActive(true);
-                UpdateRangeIndicatorColor();
 
                 if (timer > 0f)
                 {
@@ -327,17 +329,12 @@ namespace Pathogen
                 if (rangeFlashTimer <= 0f && !rangeHeldOpen)
                     rangeIndicator.SetActive(false);
             }
+
+            if (rangeIndicator != null && rangeIndicator.activeSelf)
+                rangeIndicator.transform.position = new Vector3(
+                    transform.position.x, 0.05f, transform.position.z);
         }
 
-        private void UpdateRangeIndicatorColor()
-        {
-            if (rangeIndicator == null || !rangeIndicator.activeSelf) return;
-            rangeIndicator.transform.position = new Vector3(
-                transform.position.x, 0.02f, transform.position.z);
-            bool hasTarget = GameManager.Instance != null &&
-                GameManager.Instance.GetNearestEnemy(transform.position, champion.attackRange, champion.team) != null;
-            rangeIndicatorRenderer.material.color = hasTarget ? rangeInRange : rangeOutOfRange;
-        }
 
         // ─── EXECUTION (shared) ─────────────────────────────────────────
 
@@ -435,6 +432,8 @@ namespace Pathogen
 
         protected void MoveInDirection(Vector3 direction)
         {
+            if (champion.isRecalling) champion.CancelRecall();
+
             direction = ChampionSteerAroundObstacles(direction);
             transform.position += direction * champion.moveSpeed * Time.deltaTime;
             FaceTarget(transform.position + direction);

@@ -7,25 +7,23 @@ namespace Pathogen
     public class ChampionStats : MonoBehaviour
     {
         public Champion champion;
-        public RectTransform healthFill;
-        public RectTransform healthTrail;
-        public RectTransform manaFill;
-        public RectTransform manaTrail;
         public TextMeshProUGUI levelText;
         public Image xpRing;
 
+        // Shader-driven materials (created by factory)
+        public Material healthMaterial;
+        public Material manaMaterial;
+
         private float healthTarget;
-        private float healthDisplayed;
-        private float healthTrailValue;
-
-        private float manaTarget;
-        private float manaDisplayed;
-        private float manaTrailValue;
-
+        private float lastHealthPct;
+        private float trailAlpha;
+        private float trailDelayTimer;
         private float xpDisplayed;
-        private const float FillSpeed = 60f;
-        private const float TrailSpeed = 20f;
+
+        private const float TrailFadeSpeed = 4f;    // 0.25s
+        private const float TrailDelay = 0.12f;
         private const float XpFillSpeed = 3f;
+        private const float HpPerTick = 100f;
 
         void Start()
         {
@@ -33,51 +31,38 @@ namespace Pathogen
 
             float hp = champion.currentHealth / champion.maxHealth;
             healthTarget = hp;
-            healthDisplayed = hp;
-            healthTrailValue = hp;
-            SetFill(healthFill, hp);
-            HideTrail(healthTrail);
-
-            float mp = champion.currentMana / champion.maxMana;
-            manaTarget = mp;
-            manaDisplayed = mp;
-            manaTrailValue = mp;
-            SetFill(manaFill, mp);
-            HideTrail(manaTrail);
-
-            if (levelText != null)
-                levelText.text = champion.level.ToString();
+            lastHealthPct = hp;
 
             if (xpRing != null)
                 xpRing.fillAmount = champion.currentXP / champion.xpToNextLevel;
 
-            champion.OnHealthChanged += (cur, max) => healthTarget = cur / max;
-            champion.OnManaChanged += (cur, max) => manaTarget = cur / max;
-            champion.OnLevelUp += (lvl) =>
-            {
-                if (levelText != null) levelText.text = lvl.ToString();
-                xpDisplayed = 0f;
-            };
-            champion.OnDeath += (_) => SetVisible(false);
+            champion.OnHealthChanged += OnHealthChanged;
+            champion.OnManaChanged += OnManaChanged;
+            champion.OnLevelUp += OnLevelUp;
+            champion.OnDeath += _ => SetVisible(false);
             champion.OnRespawn += () => SetVisible(true);
-        }
-
-        private void SetVisible(bool visible)
-        {
-            foreach (Transform child in transform)
-                child.gameObject.SetActive(visible);
         }
 
         void Update()
         {
-            float dt = Time.deltaTime;
-            AnimateBar(ref healthDisplayed, ref healthTrailValue, healthTarget, healthFill, healthTrail, dt);
-            AnimateBar(ref manaDisplayed, ref manaTrailValue, manaTarget, manaFill, manaTrail, dt);
+            // Damage/heal trail fade
+            if (healthMaterial != null && trailAlpha > 0f)
+            {
+                if (trailDelayTimer > 0f)
+                    trailDelayTimer -= Time.deltaTime;
+                else
+                {
+                    trailAlpha -= TrailFadeSpeed * Time.deltaTime;
+                    if (trailAlpha <= 0f) trailAlpha = 0f;
+                }
+                healthMaterial.SetFloat("_TrailAlpha", trailAlpha);
+            }
 
+            // XP ring
             if (xpRing != null && champion != null)
             {
                 float xpTarget = champion.currentXP / champion.xpToNextLevel;
-                xpDisplayed = Mathf.MoveTowards(xpDisplayed, xpTarget, XpFillSpeed * dt);
+                xpDisplayed = Mathf.MoveTowards(xpDisplayed, xpTarget, XpFillSpeed * Time.deltaTime);
                 xpRing.fillAmount = xpDisplayed;
             }
         }
@@ -88,66 +73,236 @@ namespace Pathogen
                 transform.rotation = Camera.main.transform.rotation;
         }
 
-        private void AnimateBar(ref float displayed, ref float trail, float target,
-            RectTransform fill, RectTransform trailRT, float dt)
+        private void OnHealthChanged(float current, float max)
         {
-            if (fill == null) return;
+            if (healthMaterial == null) return;
 
-            if (Mathf.Abs(displayed - target) > 0.001f)
+            float pct = max > 0 ? Mathf.Clamp01(current / max) : 0f;
+            float delta = pct - lastHealthPct;
+
+            if (Mathf.Abs(delta) > 0.001f)
             {
-                displayed = Mathf.MoveTowards(displayed, target, FillSpeed * dt);
-                SetFill(fill, displayed);
+                healthMaterial.SetFloat("_TrailPct", lastHealthPct);
+                healthMaterial.SetFloat("_TrailSign", delta < 0 ? -1f : 1f);
+                trailAlpha = 1f;
+                trailDelayTimer = TrailDelay;
             }
 
-            if (trailRT == null) return;
+            lastHealthPct = pct;
+            healthMaterial.SetFloat("_FillPct", pct);
 
-            if (Mathf.Abs(trail - target) > 0.001f)
+            // Update tick spacing when max HP changes (level-ups)
+            float tickUV = max > 0 ? HpPerTick / max : 0.1f;
+            healthMaterial.SetFloat("_TickSpacing", tickUV);
+        }
+
+        private void OnManaChanged(float current, float max)
+        {
+            if (manaMaterial == null) return;
+            float pct = max > 0 ? Mathf.Clamp01(current / max) : 0f;
+            manaMaterial.SetFloat("_FillPct", pct);
+        }
+
+        private void OnLevelUp(int lvl)
+        {
+            if (levelText != null) levelText.text = lvl.ToString();
+            xpDisplayed = 0f;
+        }
+
+        private void SetVisible(bool visible)
+        {
+            foreach (Transform child in transform)
+                child.gameObject.SetActive(visible);
+        }
+
+        // ─── FACTORY ────────────────────────────────────────────────────
+
+        public static ChampionStats Create(Transform champTransform, Champion champ, float champHeight)
+        {
+            var container = new GameObject("ChampionStats");
+            container.transform.SetParent(champTransform, false);
+            container.transform.localPosition = new Vector3(0f, champHeight + 1.2f, 0f);
+
+            var canvas = container.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 50;
+            var rt = container.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(1.5f, 0.8f);
+            rt.localScale = Vector3.one * 0.015f;
+
+            var cg = container.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+
+            // Layout constants
+            float lvlSize = 45f;
+            float barWidth = 90f;
+            float groupGap = 6f;
+            float groupWidth = lvlSize + groupGap + barWidth;
+            float groupStartX = -groupWidth * 0.5f;
+            float healthBarHeight = 17f;
+            float manaBarHeight = 17f;
+            float barGap = 1f;
+            float barsTopY = (healthBarHeight + barGap + manaBarHeight) * 0.5f;
+            float barsLeftX = groupStartX + lvlSize + groupGap;
+
+            // ── Level circle + XP ring ──
+            var lvlContainer = CreateImg(container.transform, "LevelContainer",
+                new Vector2(0.5f, 0.5f), new Vector2(groupStartX + lvlSize * 0.5f, 0f),
+                new Vector2(lvlSize, lvlSize), new Color(0.1f, 0.1f, 0.15f, 0.8f));
+            lvlContainer.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
+            var circleSprite = GameBootstrap.CreateCircleSprite(256);
+            lvlContainer.GetComponent<Image>().sprite = circleSprite;
+
+            CreateXPRingBackground(lvlContainer.transform, lvlSize);
+            var xpRingImg = CreateXPRingFill(lvlContainer.transform, lvlSize);
+
+            var lvlText = CreateLabel(lvlContainer.transform, "LevelText",
+                new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(lvlSize, lvlSize), "1", 20, Color.white);
+            lvlText.fontStyle = FontStyles.Bold;
+
+            // ── Health bar (shader-driven) ──
+            var barShader = Shader.Find("Pathogen/UIEntityBarCanvas");
+
+            var hpMat = new Material(barShader);
+            Color hpColor = champ.team == Team.Virus
+                ? new Color(0.85f, 0.18f, 0.18f)
+                : new Color(0.2f, 0.72f, 0.3f);
+            hpMat.SetColor("_FillColor", hpColor);
+            hpMat.SetFloat("_FillPct", 1f);
+            hpMat.SetFloat("_TrailPct", 1f);
+            hpMat.SetFloat("_TrailAlpha", 0f);
+            float tickUV = champ.maxHealth > 0 ? HpPerTick / champ.maxHealth : 0.1f;
+            hpMat.SetFloat("_TickSpacing", tickUV);
+
+            var healthBarGO = CreateImg(container.transform, "HealthBar",
+                new Vector2(0.5f, 0.5f), new Vector2(barsLeftX, barsTopY),
+                new Vector2(barWidth, healthBarHeight), Color.white);
+            healthBarGO.GetComponent<RectTransform>().pivot = new Vector2(0f, 1f);
+            healthBarGO.GetComponent<Image>().material = hpMat;
+
+            // ── Mana bar (shader-driven, no ticks/trail) ──
+            var manaMat = new Material(barShader);
+            manaMat.SetColor("_FillColor", new Color(0.25f, 0.4f, 0.9f));
+            manaMat.SetColor("_BGColor", new Color(0.1f, 0.1f, 0.18f, 0.85f));
+            manaMat.SetFloat("_FillPct", 1f);
+            manaMat.SetFloat("_TrailAlpha", 0f);
+            manaMat.SetFloat("_TickSpacing", 0f);
+
+            var manaBarGO = CreateImg(container.transform, "ManaBar",
+                new Vector2(0.5f, 0.5f),
+                new Vector2(barsLeftX, barsTopY - healthBarHeight - barGap),
+                new Vector2(barWidth, manaBarHeight), Color.white);
+            manaBarGO.GetComponent<RectTransform>().pivot = new Vector2(0f, 1f);
+            manaBarGO.GetComponent<Image>().material = manaMat;
+
+            // ── Wire component ──
+            var stats = container.AddComponent<ChampionStats>();
+            stats.champion = champ;
+            stats.healthMaterial = hpMat;
+            stats.manaMaterial = manaMat;
+            stats.levelText = lvlText;
+            stats.xpRing = xpRingImg;
+
+            return stats;
+        }
+
+        // ─── HELPERS ────────────────────────────────────────────────────
+
+        private static GameObject CreateImg(Transform parent, string name,
+            Vector2 anchor, Vector2 pos, Vector2 size, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var r = go.GetComponent<RectTransform>();
+            r.anchorMin = anchor;
+            r.anchorMax = anchor;
+            r.pivot = new Vector2(0.5f, 0.5f);
+            r.anchoredPosition = pos;
+            r.sizeDelta = size;
+            go.AddComponent<Image>().color = color;
+            return go;
+        }
+
+        private static Sprite cachedRingSprite;
+
+        private static Sprite GetOrCreateRingSprite()
+        {
+            if (cachedRingSprite != null) return cachedRingSprite;
+
+            int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float center = size * 0.5f;
+            float outerRadius = center - 1f;
+            float innerRadius = outerRadius - 24f;
+
+            for (int y = 0; y < size; y++)
             {
-                trail = Mathf.MoveTowards(trail, target, TrailSpeed * dt);
-                UpdateTrail(trailRT, displayed, trail);
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float outerAlpha = Mathf.Clamp01(outerRadius - dist + 1f);
+                    float innerAlpha = Mathf.Clamp01(dist - innerRadius + 1f);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Min(outerAlpha, innerAlpha)));
+                }
             }
-            else
-            {
-                HideTrail(trailRT);
-            }
+
+            tex.Apply();
+            tex.filterMode = FilterMode.Bilinear;
+            cachedRingSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+            return cachedRingSprite;
         }
 
-        private void SetFill(RectTransform rt, float pct)
+        private static void CreateXPRingBackground(Transform parent, float lvlSize)
         {
-            if (rt == null) return;
-            pct = Mathf.Clamp01(pct);
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(pct, 1f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
+            var ringSprite = GetOrCreateRingSprite();
+            var go = CreateImg(parent, "XPRingBG",
+                new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(lvlSize + 8f, lvlSize + 8f), new Color(0.35f, 0.35f, 0.4f, 0.5f));
+            go.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
+            var img = go.GetComponent<Image>();
+            img.sprite = ringSprite;
+            img.raycastTarget = false;
         }
 
-        private void UpdateTrail(RectTransform rt, float displayed, float trail)
+        private static Image CreateXPRingFill(Transform parent, float lvlSize)
         {
-            if (rt == null) return;
-
-            float lo = Mathf.Min(displayed, trail);
-            float hi = Mathf.Max(displayed, trail);
-
-            rt.anchorMin = new Vector2(Mathf.Clamp01(lo), 0f);
-            rt.anchorMax = new Vector2(Mathf.Clamp01(hi), 1f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-
-            var img = rt.GetComponent<Image>();
-            if (img != null)
-                img.color = trail > displayed
-                    ? new Color(1f, 0.2f, 0.1f, 0.6f)
-                    : new Color(0.2f, 1f, 0.3f, 0.6f);
+            var ringSprite = GetOrCreateRingSprite();
+            var go = CreateImg(parent, "XPRing",
+                new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(lvlSize + 8f, lvlSize + 8f), new Color(0.3f, 0.8f, 1f, 0.9f));
+            go.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
+            var img = go.GetComponent<Image>();
+            img.sprite = ringSprite;
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Radial360;
+            img.fillOrigin = (int)Image.Origin360.Top;
+            img.fillAmount = 0f;
+            img.raycastTarget = false;
+            return img;
         }
 
-        private void HideTrail(RectTransform rt)
+        private static TextMeshProUGUI CreateLabel(Transform parent, string name,
+            Vector2 anchor, Vector2 pos, Vector2 size,
+            string text, int fontSize, Color color)
         {
-            if (rt == null) return;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.zero;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var r = go.GetComponent<RectTransform>();
+            r.anchorMin = anchor;
+            r.anchorMax = anchor;
+            r.pivot = new Vector2(0.5f, 0.5f);
+            r.anchoredPosition = pos;
+            r.sizeDelta = size;
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = fontSize;
+            tmp.color = color;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.font = GameBootstrap.UIFont;
+            return tmp;
         }
     }
 }

@@ -55,6 +55,11 @@ namespace Pathogen
         public Vector3 spawnPoint;
         public bool isRespawning;
 
+        [Header("Recall")]
+        public bool isRecalling;
+        public float recallTimer;
+        public const float RecallDuration = 8f;
+
         private Color originalColor;
 
         // Ultimate rank-up level gates (unlock at 4, upgrade at 8 and 12)
@@ -67,6 +72,12 @@ namespace Pathogen
         public event Action<float, float> OnManaChanged;
         public event Action OnRespawn;
         public event Action<float> OnRespawnTimerChanged; // Fires each second with remaining time
+        public event Action OnRecallStarted;
+        public event Action<float> OnRecallProgress;      // Fires with normalized progress 0..1
+        public event Action OnRecallCompleted;
+        public event Action OnRecallCancelled;
+
+        public void InvokeManaChanged() => OnManaChanged?.Invoke(currentMana, maxMana);
 
         protected override void Awake()
         {
@@ -89,27 +100,48 @@ namespace Pathogen
             base.Update();
             if (IsDead) return;
 
-            // Mana regen
-            if (currentMana < maxMana)
+            if (isRecalling)
             {
-                currentMana = Mathf.Min(maxMana, currentMana + manaRegen * Time.deltaTime);
-                OnManaChanged?.Invoke(currentMana, maxMana);
+                TickRecallChannel();
+                return;
             }
 
-            // Skill cooldowns
+            RegenerateMana();
+            TickSkillCooldowns();
+            TickBuffDuration();
+        }
+
+        private void RegenerateMana()
+        {
+            if (currentMana >= maxMana) return;
+            currentMana = Mathf.Min(maxMana, currentMana + manaRegen * Time.deltaTime);
+            OnManaChanged?.Invoke(currentMana, maxMana);
+        }
+
+        private void TickSkillCooldowns()
+        {
             for (int i = 0; i < skills.Length; i++)
             {
                 if (skills[i] != null)
                     skills[i].UpdateCooldown(Time.deltaTime);
             }
+        }
 
-            // Buff timer
-            if (isBuffed)
-            {
-                buffTimer -= Time.deltaTime;
-                if (buffTimer <= 0f)
-                    RemoveBuff();
-            }
+        private void TickBuffDuration()
+        {
+            if (!isBuffed) return;
+            buffTimer -= Time.deltaTime;
+            if (buffTimer <= 0f)
+                RemoveBuff();
+        }
+
+        private void TickRecallChannel()
+        {
+            recallTimer -= Time.deltaTime;
+            OnRecallProgress?.Invoke(1f - recallTimer / RecallDuration);
+
+            if (recallTimer <= 0f)
+                CompleteRecall();
         }
 
         public void InitializeSkills(SkillDefinition[] definitions)
@@ -128,6 +160,8 @@ namespace Pathogen
             var skill = skills[index];
             if (skill == null || !skill.IsReady) return false;
             if (currentMana < skill.definition.manaCost) return false;
+
+            if (isRecalling) CancelRecall();
 
             currentMana -= skill.definition.manaCost;
             OnManaChanged?.Invoke(currentMana, maxMana);
@@ -418,6 +452,41 @@ namespace Pathogen
             return true;
         }
 
+        // ─── RECALL ──────────────────────────────────────────────────────
+
+        public void StartRecall()
+        {
+            if (IsDead || isRespawning || isRecalling || isDashing) return;
+
+            isRecalling = true;
+            recallTimer = RecallDuration;
+            currentTarget = null;
+            OnRecallStarted?.Invoke();
+        }
+
+        public void CancelRecall()
+        {
+            if (!isRecalling) return;
+
+            isRecalling = false;
+            recallTimer = 0f;
+            OnRecallCancelled?.Invoke();
+        }
+
+        private void CompleteRecall()
+        {
+            isRecalling = false;
+            recallTimer = 0f;
+
+            transform.position = spawnPoint;
+            currentTarget = null;
+            isDashing = false;
+
+            OnRecallCompleted?.Invoke();
+        }
+
+        // ─── ECONOMY ────────────────────────────────────────────────────
+
         public void AddGold(float amount)
         {
             bioCurrency += amount;
@@ -448,9 +517,9 @@ namespace Pathogen
         {
             base.Die(killer);
 
+            if (isRecalling) CancelRecall();
             if (isBuffed) RemoveBuff();
 
-            // Clear all combat state
             isDashing = false;
             currentTarget = null;
             attackCooldown = 0f;

@@ -132,11 +132,14 @@ namespace Pathogen
                     dmgColor, 0.7f);
             }
 
-            // Notify AI controller of hit for disengage logic
             if (entityType == EntityType.Champion)
             {
                 var ai = GetComponent<AIController>();
                 if (ai != null) ai.OnHitReceived();
+
+                var champ = this as Champion;
+                if (champ != null && champ.isRecalling)
+                    champ.CancelRecall();
             }
 
             if (visuals != null)

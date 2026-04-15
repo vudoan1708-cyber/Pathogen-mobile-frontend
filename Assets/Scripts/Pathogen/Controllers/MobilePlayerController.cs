@@ -160,7 +160,7 @@ namespace Pathogen
             if (champion == null || champion.IsDead) return;
             if (GameManager.Instance == null) return;
 
-            ShowAttackRange(true, 0.5f);
+            ShowAttackRange(false);
             activeAttackTargetType = targetType;
 
             // Locked target has priority, else find nearest of type
@@ -234,7 +234,7 @@ namespace Pathogen
                 aimDirection = new Vector3(-aimDirection.x, 0f, -aimDirection.z);
 
             if (aimIndicator != null) aimIndicator.Hide();
-            ShowAttackRange(true, 0.5f);
+            ShowAttackRange(false);
 
             Entity target = attackButtonTarget;
             if (target == null || target.IsDead)

@@ -25,6 +25,15 @@ namespace Pathogen
         private static Mesh discMesh;
         private static Mesh ringMesh;
 
+        public static Mesh SharedRingMesh
+        {
+            get
+            {
+                if (ringMesh == null) ringMesh = GenerateRingMesh(0.493f, 0.5f, 64);
+                return ringMesh;
+            }
+        }
+
         /// <summary>Shared disc mesh for AOE visuals (lazy-init).</summary>
         public static Mesh SharedDiscMesh
         {
@@ -105,6 +114,7 @@ namespace Pathogen
             filter.sharedMesh = quadMesh;
 
             rectangleMaterial = CreateBioPulseMaterial(indicatorColor);
+            rectangleMaterial.SetFloat("_ShowArrow", 1f);
             var renderer = rectangleIndicator.AddComponent<MeshRenderer>();
             renderer.material = rectangleMaterial;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -143,13 +153,14 @@ namespace Pathogen
 
         private void CreateRangeRing()
         {
-            if (ringMesh == null) ringMesh = GenerateRingMesh(0.47f, 0.5f, 64);
+            if (ringMesh == null) ringMesh = GenerateRingMesh(0.493f, 0.5f, 64);
 
             rangeRing = new GameObject("RangeRing");
             var filter = rangeRing.AddComponent<MeshFilter>();
             filter.sharedMesh = ringMesh;
 
-            rangeRingMaterial = CreateBioPulseMaterial(indicatorColor, 0f, 0.35f);
+            var ringColor = new Color(0.75f, 0.85f, 1f);
+            rangeRingMaterial = CreateBioPulseMaterial(ringColor, 0f, 0.45f);
             rangeRingMaterial.SetFloat("_PulseIntensity", 0f);
             var renderer = rangeRing.AddComponent<MeshRenderer>();
             renderer.material = rangeRingMaterial;
@@ -328,6 +339,7 @@ namespace Pathogen
             int vertCount = (segX + 1) * (segZ + 1);
             var vertices = new Vector3[vertCount];
             var uvs = new Vector2[vertCount];
+            var uvs2 = new Vector2[vertCount];
             var normals = new Vector3[vertCount];
 
             for (int z = 0; z <= segZ; z++)
@@ -342,7 +354,8 @@ namespace Pathogen
                     normals[idx] = Vector3.up;
 
                     float edgeDist = Mathf.Min(u, 1f - u, v, 1f - v) * 2f;
-                    uvs[idx] = new Vector2(Mathf.Clamp01(edgeDist), 0f);
+                    uvs[idx] = new Vector2(Mathf.Clamp01(edgeDist), v);
+                    uvs2[idx] = new Vector2(u, v);
                 }
             }
 
@@ -371,6 +384,7 @@ namespace Pathogen
             mesh.triangles = triangles;
             mesh.normals = normals;
             mesh.uv = uvs;
+            mesh.uv2 = uvs2;
             return mesh;
         }
 
@@ -522,9 +536,9 @@ namespace Pathogen
                 vertices[i * 2] = new Vector3(cos * innerRadius, 0f, sin * innerRadius);
                 vertices[i * 2 + 1] = new Vector3(cos * outerRadius, 0f, sin * outerRadius);
 
-                // All ring vertices are edge (UV.x = 0)
-                uvs[i * 2] = new Vector2(0.02f, 0f);
-                uvs[i * 2 + 1] = new Vector2(0f, 0f);
+                // Inner edge = 0 (edge glow), outer edge = inset (glow fades inward)
+                uvs[i * 2] = new Vector2(0f, 0f);
+                uvs[i * 2 + 1] = new Vector2(0.06f, 0f);
 
                 int ti = i * 6;
                 int curr = i * 2;

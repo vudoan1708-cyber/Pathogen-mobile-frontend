@@ -25,6 +25,10 @@ namespace Pathogen
         public GameObject gameOverPanel;
         public TextMeshProUGUI respawnCountdownText;
         public GameObject respawnPanel;
+        public Button recallButton;
+        public GameObject recallProgressBar;
+        public Image recallProgressFill;
+        public TextMeshProUGUI recallProgressText;
 
         // Skill button colors
         private readonly Color readyColor = new Color(0.3f, 0.8f, 0.3f);
@@ -44,6 +48,10 @@ namespace Pathogen
                 playerChampion.OnBioCurrencyChanged += UpdateBioCurrency;
                 playerChampion.OnRespawnTimerChanged += ShowRespawnCountdown;
                 playerChampion.OnRespawn += OnPlayerRespawn;
+                playerChampion.OnRecallStarted += ShowRecallProgress;
+                playerChampion.OnRecallProgress += UpdateRecallProgress;
+                playerChampion.OnRecallCompleted += HideRecallProgress;
+                playerChampion.OnRecallCancelled += HideRecallProgress;
             }
 
             if (GameManager.Instance != null)
@@ -58,6 +66,8 @@ namespace Pathogen
             // Shop button
             if (shopButton != null)
                 shopButton.onClick.AddListener(ToggleShop);
+            if (recallButton != null)
+                recallButton.onClick.AddListener(OnRecallButtonPressed);
 
             if (shopPanel != null)
                 shopPanel.SetActive(false);
@@ -65,6 +75,8 @@ namespace Pathogen
                 gameOverPanel.SetActive(false);
             if (respawnPanel != null)
                 respawnPanel.SetActive(false);
+            if (recallProgressBar != null)
+                recallProgressBar.SetActive(false);
 
             UpdateAll();
         }
@@ -73,14 +85,9 @@ namespace Pathogen
         {
             UpdateSkillButtons();
 
-#if UNITY_EDITOR
             var kb = Keyboard.current;
-            if (kb != null)
-            {
-                if (kb.bKey.wasPressedThisFrame)
-                    ToggleShop();
-            }
-#endif
+            if (kb != null && kb.bKey.wasPressedThisFrame)
+                OnRecallButtonPressed();
         }
 
         private void UpdateAll()
@@ -172,9 +179,46 @@ namespace Pathogen
             if (respawnPanel != null)
                 respawnPanel.SetActive(false);
 
-            // Camera auto-moves to base
             if (cameraController != null)
                 cameraController.Recenter();
+        }
+
+        // ─── RECALL ─────────────────────────────────────────────────────
+
+        private void OnRecallButtonPressed()
+        {
+            if (playerChampion == null || playerChampion.IsDead || playerChampion.isRespawning) return;
+
+            if (playerChampion.isRecalling)
+                playerChampion.CancelRecall();
+            else
+                playerChampion.StartRecall();
+        }
+
+        private void ShowRecallProgress()
+        {
+            if (recallProgressBar != null)
+                recallProgressBar.SetActive(true);
+            if (recallProgressFill != null)
+                recallProgressFill.fillAmount = 0f;
+            if (recallProgressText != null)
+                recallProgressText.text = "RECALLING...";
+        }
+
+        private void UpdateRecallProgress(float normalizedProgress)
+        {
+            if (recallProgressFill != null)
+                recallProgressFill.fillAmount = normalizedProgress;
+
+            float remaining = Champion.RecallDuration * (1f - normalizedProgress);
+            if (recallProgressText != null)
+                recallProgressText.text = $"RECALLING... {remaining:F1}s";
+        }
+
+        private void HideRecallProgress()
+        {
+            if (recallProgressBar != null)
+                recallProgressBar.SetActive(false);
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Pathogen
     public class Structure : Entity
     {
         [Header("Structure Settings")]
-        public float structureRange = 4f;
+        public float structureRange = 6f;
 
         [Header("Escalating Damage")]
         public int trueDamageThreshold = 3;
@@ -241,6 +241,7 @@ namespace Pathogen
         {
             if (rangeRing == null || GameManager.Instance == null) return;
 
+            // Only show range ring on ENEMY structures when the player champion is near
             float revealRange = structureRange + RangeRingRevealBuffer;
             bool showRing = false;
 
@@ -248,7 +249,8 @@ namespace Pathogen
             foreach (var entity in nearbyEntities)
             {
                 if (entity.IsDead || entity.entityType != EntityType.Champion) continue;
-                if (entity.team != team)
+                // Show ring only to enemy champions (player near hostile structure)
+                if (entity.team != team && entity.GetComponent<PlayerController>() != null)
                 {
                     showRing = true;
                     break;

@@ -234,7 +234,7 @@ namespace Pathogen
                     attackTarget = clickedEntity;
                     isChasing = true;
                     isMovingToTarget = false;
-                    ShowAttackRange(true, 0.3f);
+                    ShowAttackRange(false);
                 }
                 else
                 {

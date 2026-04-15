@@ -22,6 +22,8 @@ namespace Pathogen
         [Header("Level-Up UI")]
         public GameObject upgradeButton;    // The gold "+" overlay (child of this GO)
         public Image flashOverlay;          // White flash overlay (child of this GO)
+        public Image cooldownOverlay;       // Radial sweep overlay (shader-driven)
+        public Material cooldownMaterial;   // Per-button material instance for _Progress
 
         private const float DragThresholdSq = 100f; // 10px radius — matches AutoAttackButton
 
@@ -60,14 +62,65 @@ namespace Pathogen
 
             if (flashOverlay != null)
                 flashOverlay.color = Color.clear;
+
+            CreateCooldownOverlay();
+        }
+
+        // ─── COOLDOWN OVERLAY ───────────────────────────────────────────
+
+        private void CreateCooldownOverlay()
+        {
+            var cdShader = Shader.Find("Pathogen/UISkillCooldown");
+            if (cdShader == null) return;
+
+            cooldownMaterial = new Material(cdShader);
+            cooldownMaterial.SetFloat("_Progress", 1f);
+
+            var rt = GetComponent<RectTransform>();
+            float size = rt != null ? rt.sizeDelta.x : 100f;
+
+            var cdGO = new GameObject("CooldownOverlay", typeof(RectTransform));
+            cdGO.transform.SetParent(transform, false);
+            var cdRT = cdGO.GetComponent<RectTransform>();
+            cdRT.anchorMin = new Vector2(0.5f, 0.5f);
+            cdRT.anchorMax = new Vector2(0.5f, 0.5f);
+            cdRT.pivot = new Vector2(0.5f, 0.5f);
+            cdRT.anchoredPosition = Vector2.zero;
+            cdRT.sizeDelta = new Vector2(size, size);
+
+            cooldownOverlay = cdGO.AddComponent<Image>();
+            cooldownOverlay.sprite = GetComponent<Image>()?.sprite; // reuse circle sprite from skill button
+            cooldownOverlay.material = cooldownMaterial;
+            cooldownOverlay.color = Color.white;
+            cooldownOverlay.raycastTarget = false;
         }
 
         // ─── SKILL AIM INPUT ────────────────────────────────────────────
 
         void Update()
         {
+            UpdateCooldownOverlay();
+
             if (!isPressed || !hasDragged || !IsMobile) return;
             playerController.OnMobileSkillAimUpdate(lastAimDirection);
+        }
+
+        private void UpdateCooldownOverlay()
+        {
+            if (cooldownMaterial == null || playerController == null) return;
+            var champion = playerController.champion;
+            if (champion == null || skillIndex >= champion.skills.Length) return;
+
+            var skill = champion.skills[skillIndex];
+            if (skill == null || !skill.IsUnlocked || skill.currentCooldown <= 0f)
+            {
+                cooldownMaterial.SetFloat("_Progress", 1f);
+                return;
+            }
+
+            float total = skill.GetCooldown(champion.cooldownReduction);
+            float progress = 1f - Mathf.Clamp01(skill.currentCooldown / total);
+            cooldownMaterial.SetFloat("_Progress", progress);
         }
 
         public void OnPointerDown(PointerEventData eventData)
