@@ -156,7 +156,7 @@ namespace Pathogen
                     break;
 
                 case SkillType.AreaOfEffect:
-                    PerformAOE(skill);
+                    PerformAOE(skill, targetPosition);
                     break;
 
                 case SkillType.SelfBuff:
@@ -245,12 +245,16 @@ namespace Pathogen
             }
         }
 
-        private void PerformAOE(Skill skill)
+        private void PerformAOE(Skill skill, Vector3 targetPosition)
         {
+            // Use target position if provided, otherwise self-centered
+            Vector3 center = targetPosition.sqrMagnitude > 0.01f ? targetPosition : transform.position;
+            center.y = transform.position.y;
+
             var vis = skill.definition.visuals;
             Team enemyTeam = team == Team.Virus ? Team.Immune : Team.Virus;
             var enemies = GameManager.Instance.GetEntitiesInRange(
-                transform.position, skill.definition.aoeRadius, enemyTeam);
+                center, skill.definition.aoeRadius, enemyTeam);
 
             var snapshot = enemies.ToArray();
             foreach (var enemy in snapshot)
@@ -259,26 +263,39 @@ namespace Pathogen
                     enemy.TakeDamage(skill.GetDamage(), skill.definition.isMagicDamage, this, vis);
             }
 
-            StartCoroutine(AOEVisualCoroutine(skill));
+            StartCoroutine(AOEVisualCoroutine(skill, center));
         }
 
-        private System.Collections.IEnumerator AOEVisualCoroutine(Skill skill)
+        private System.Collections.IEnumerator AOEVisualCoroutine(Skill skill, Vector3 center)
         {
             var def = skill.definition;
             var vis = def.visuals;
 
-            var visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            visual.name = "AOEVisual";
-            visual.transform.position = transform.position;
-            visual.transform.localScale = Vector3.one * def.aoeRadius * 2f;
+            var visual = new GameObject("AOEVisual");
+            visual.transform.position = new Vector3(center.x, 0.05f, center.z);
 
-            DestroyImmediate(visual.GetComponent<SphereCollider>());
+            float diameter = def.aoeRadius * 2f;
+            visual.transform.localScale = new Vector3(diameter, diameter, diameter);
 
-            var renderer = visual.GetComponent<Renderer>();
-            Color color = new Color(vis.primaryColor.r, vis.primaryColor.g, vis.primaryColor.b, 0.3f);
-            renderer.material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            renderer.material.SetFloat("_Surface", 1);
-            renderer.material.color = color;
+            var filter = visual.AddComponent<MeshFilter>();
+            filter.sharedMesh = SkillAimIndicator.SharedDiscMesh;
+
+            var bioPulseShader = Shader.Find("Pathogen/BioPulse");
+            if (bioPulseShader == null)
+                bioPulseShader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            var mat = new Material(bioPulseShader);
+            mat.SetColor("_Color", vis.primaryColor);
+            mat.SetFloat("_FillAlpha", 0.12f);
+            mat.SetFloat("_EdgeAlpha", 0.85f);
+            mat.SetFloat("_PulseSpeed", 2.5f);
+            mat.SetFloat("_PulseIntensity", 0.3f);
+            mat.renderQueue = 3010;
+
+            var renderer = visual.AddComponent<MeshRenderer>();
+            renderer.material = mat;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
 
             yield return new WaitForSeconds(0.5f);
             Destroy(visual);

@@ -24,6 +24,16 @@ namespace Pathogen
         private static Mesh quadMesh;
         private static Mesh discMesh;
         private static Mesh ringMesh;
+
+        /// <summary>Shared disc mesh for AOE visuals (lazy-init).</summary>
+        public static Mesh SharedDiscMesh
+        {
+            get
+            {
+                if (discMesh == null) discMesh = GenerateDiscMesh(48, 6);
+                return discMesh;
+            }
+        }
         private float cachedConeAngle = -1f;
         private Mesh cachedConeMesh;
 
@@ -252,7 +262,10 @@ namespace Pathogen
                     break;
 
                 case IndicatorShape.Circle:
-                    var aoePos = origin + Vector3.ClampMagnitude(direction, def.range);
+                    // mag <= 1 = mobile aim ratio, mag > 1 = desktop world distance
+                    float mag = direction.magnitude;
+                    float placeDist = mag <= 1f ? mag * def.range : Mathf.Min(mag, def.range);
+                    var aoePos = origin + direction.normalized * Mathf.Max(placeDist, 1f);
                     aoePos.y = 0.05f;
                     ShowAOECircle(aoePos, def.aoeRadius);
                     break;

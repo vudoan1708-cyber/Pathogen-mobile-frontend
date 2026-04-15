@@ -90,7 +90,9 @@ namespace Pathogen
             if (offset.sqrMagnitude > DragThresholdSq)
             {
                 hasDragged = true;
-                lastAimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
+                // Preserve aim ratio (0–1) as magnitude so AOE skills can control distance
+                float ratio = Mathf.Clamp01(offset.magnitude / cancelBoundary);
+                lastAimDirection = new Vector3(offset.x, 0f, offset.y).normalized * ratio;
                 playerController.OnMobileSkillAimUpdate(lastAimDirection);
             }
 
@@ -114,7 +116,8 @@ namespace Pathogen
             Vector2 offset = eventData.position - pressPosition;
             if (offset.sqrMagnitude > DragThresholdSq)
             {
-                Vector3 aimDirection = new Vector3(offset.x, 0f, offset.y).normalized;
+                float ratio = Mathf.Clamp01(offset.magnitude / cancelBoundary);
+                Vector3 aimDirection = new Vector3(offset.x, 0f, offset.y).normalized * ratio;
                 playerController.OnMobileSkillAimRelease(aimDirection);
             }
             else

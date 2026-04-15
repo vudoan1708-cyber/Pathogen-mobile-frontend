@@ -90,7 +90,7 @@ namespace Pathogen
                         description = "Release a burst of infection, damaging all nearby enemies.",
                         type = SkillType.AreaOfEffect,
                         baseDamage = 100f, cooldown = 12f, manaCost = 60f,
-                        aoeRadius = 5f, isMagicDamage = true,
+                        range = 5f, aoeRadius = 2.5f, isMagicDamage = true,
                         indicatorShape = IndicatorShape.Circle,
                         visuals = new SkillVisuals
                         {
@@ -185,7 +185,7 @@ namespace Pathogen
                         description = "Emit a purifying wave that damages nearby enemies.",
                         type = SkillType.AreaOfEffect,
                         baseDamage = 90f, cooldown = 12f, manaCost = 55f,
-                        aoeRadius = 5f, isMagicDamage = true,
+                        range = 5f, aoeRadius = 2.5f, isMagicDamage = true,
                         indicatorShape = IndicatorShape.Circle,
                         visuals = new SkillVisuals
                         {

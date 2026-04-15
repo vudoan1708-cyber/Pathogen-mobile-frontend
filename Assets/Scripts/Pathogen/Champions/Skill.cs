@@ -113,7 +113,7 @@ namespace Pathogen
         public float dashSpeed = 20f;
 
         // AOE behavior
-        public float aoeRadius = 5f;
+        public float aoeRadius = 2.5f;
 
         // Indicator shape
         public IndicatorShape indicatorShape = IndicatorShape.Line;

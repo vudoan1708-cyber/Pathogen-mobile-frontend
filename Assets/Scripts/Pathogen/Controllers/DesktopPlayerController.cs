@@ -194,7 +194,10 @@ namespace Pathogen
             if (def.faceSkillDirection)
                 transform.rotation = Quaternion.LookRotation(direction.normalized);
 
-            champion.UseSkill(aimingSkillIndex, direction.normalized, Vector3.zero);
+            Vector3 fireTarget = def.indicatorShape == IndicatorShape.Circle
+                ? transform.position + Vector3.ClampMagnitude(direction, def.range)
+                : Vector3.zero;
+            champion.UseSkill(aimingSkillIndex, direction.normalized, fireTarget);
 
             if (def.rootOnFire)
             {

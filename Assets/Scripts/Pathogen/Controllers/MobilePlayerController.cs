@@ -98,6 +98,7 @@ namespace Pathogen
 
             var def = champion.skills[aimingSkillIndex].definition;
             Vector3 direction;
+            float aimRatio = aimDirection.magnitude;
 
             if (aimDirection.sqrMagnitude > 0.01f)
             {
@@ -109,9 +110,18 @@ namespace Pathogen
                 direction = targetPos - transform.position;
                 direction.y = 0f;
                 if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
+                aimRatio = 1f;
             }
 
-            champion.UseSkill(aimingSkillIndex, direction.normalized, Vector3.zero);
+            // For AOE Circle skills, compute the world target from aim ratio
+            Vector3 fireTarget = Vector3.zero;
+            if (def.indicatorShape == IndicatorShape.Circle)
+            {
+                float placeDist = Mathf.Max(aimRatio * def.range, 1f);
+                fireTarget = transform.position + direction.normalized * placeDist;
+            }
+
+            champion.UseSkill(aimingSkillIndex, direction.normalized, fireTarget);
             CancelAiming();
         }
 
