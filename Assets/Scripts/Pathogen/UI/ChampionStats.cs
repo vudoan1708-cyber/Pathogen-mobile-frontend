@@ -170,6 +170,9 @@ namespace Pathogen
                 ? new Color(0.85f, 0.18f, 0.18f)
                 : new Color(0.2f, 0.72f, 0.3f);
             hpMat.SetColor("_FillColor", hpColor);
+            hpMat.SetColor("_BGColor", new Color(0.15f, 0.15f, 0.18f, 0.9f));
+            hpMat.SetColor("_BorderColor", new Color(0.35f, 0.35f, 0.4f, 0.9f));
+            hpMat.SetFloat("_BorderWidth", 0.04f);
             hpMat.SetFloat("_FillPct", 1f);
             hpMat.SetFloat("_TrailPct", 1f);
             hpMat.SetFloat("_TrailAlpha", 0f);
@@ -185,7 +188,9 @@ namespace Pathogen
             // ── Mana bar (shader-driven, no ticks/trail) ──
             var manaMat = new Material(barShader);
             manaMat.SetColor("_FillColor", new Color(0.25f, 0.4f, 0.9f));
-            manaMat.SetColor("_BGColor", new Color(0.1f, 0.1f, 0.18f, 0.85f));
+            manaMat.SetColor("_BGColor", new Color(0.15f, 0.15f, 0.18f, 0.9f));
+            manaMat.SetColor("_BorderColor", new Color(0.35f, 0.35f, 0.4f, 0.9f));
+            manaMat.SetFloat("_BorderWidth", 0.04f);
             manaMat.SetFloat("_FillPct", 1f);
             manaMat.SetFloat("_TrailAlpha", 0f);
             manaMat.SetFloat("_TickSpacing", 0f);

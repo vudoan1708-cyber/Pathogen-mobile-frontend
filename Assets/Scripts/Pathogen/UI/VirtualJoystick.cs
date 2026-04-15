@@ -24,6 +24,8 @@ namespace Pathogen
         public Vector2 RightTouchDelta { get; private set; }
         public bool RightTouchReleased { get; private set; }
 
+        public RectTransform[] ignoreRects;
+
         private RectTransform touchArea;
         private Canvas canvas;
         private Image touchAreaImage;
@@ -31,6 +33,7 @@ namespace Pathogen
         private Vector2 leftTouchOrigin;
         private Vector2 rightTouchPrev;
         private bool rightWasActive;
+        private int ignoredLeftTouchId = -1;
 
         void Start()
         {
@@ -67,7 +70,12 @@ namespace Pathogen
 
             foreach (var touch in touchscreen.touches)
             {
-                if (!touch.press.isPressed) continue;
+                if (!touch.press.isPressed)
+                {
+                    if (touch.touchId.ReadValue() == ignoredLeftTouchId)
+                        ignoredLeftTouchId = -1;
+                    continue;
+                }
 
                 Vector2 pos = touch.position.ReadValue();
                 var phase = touch.phase.ReadValue();
@@ -75,10 +83,24 @@ namespace Pathogen
 
                 if (isLeft && !leftFound)
                 {
+                    int tid = touch.touchId.ReadValue();
+
+                    if (phase == UnityEngine.InputSystem.TouchPhase.Began)
+                    {
+                        if (IsTouchOverIgnoredRect(pos))
+                        {
+                            ignoredLeftTouchId = tid;
+                            continue;
+                        }
+                        leftBegan = true;
+                    }
+                    else if (tid == ignoredLeftTouchId)
+                    {
+                        continue;
+                    }
+
                     leftFound = true;
                     leftPos = pos;
-                    if (phase == UnityEngine.InputSystem.TouchPhase.Began)
-                        leftBegan = true;
                 }
                 else if (!isLeft && !rightFound)
                 {
@@ -175,6 +197,18 @@ namespace Pathogen
         {
             if (touchAreaImage != null) touchAreaImage.enabled = visible;
             if (handleImage != null) handleImage.enabled = visible;
+        }
+
+        private bool IsTouchOverIgnoredRect(Vector2 screenPos)
+        {
+            if (ignoreRects == null) return false;
+            for (int i = 0; i < ignoreRects.Length; i++)
+            {
+                if (ignoreRects[i] != null &&
+                    RectTransformUtility.RectangleContainsScreenPoint(ignoreRects[i], screenPos, null))
+                    return true;
+            }
+            return false;
         }
 
         private bool IsOverUI(int fingerId)

@@ -67,7 +67,10 @@ namespace Pathogen
             if (shopButton != null)
                 shopButton.onClick.AddListener(ToggleShop);
             if (recallButton != null)
-                recallButton.onClick.AddListener(OnRecallButtonPressed);
+            {
+                var pointerHandler = recallButton.gameObject.AddComponent<RecallButtonHandler>();
+                pointerHandler.onPointerDown = OnRecallButtonPressed;
+            }
 
             if (shopPanel != null)
                 shopPanel.SetActive(false);

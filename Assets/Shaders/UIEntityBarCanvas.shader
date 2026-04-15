@@ -17,6 +17,9 @@ Shader "Pathogen/UIEntityBarCanvas"
         _TickSpacing   ("Tick Spacing UV",  Range(0, 0.5))   = 0.1
         _TickWidth     ("Tick Width",       Range(0.001, 0.025)) = 0.009
 
+        _BorderColor   ("Border Color",    Color) = (0.35, 0.35, 0.4, 0.9)
+        _BorderWidth   ("Border Width",    Range(0, 0.1)) = 0.04
+
         _StencilComp      ("Stencil Comparison", Float) = 8
         _Stencil          ("Stencil ID",         Float) = 0
         _StencilOp        ("Stencil Operation",  Float) = 0
@@ -90,6 +93,8 @@ Shader "Pathogen/UIEntityBarCanvas"
             fixed4 _TickColor;
             float _TickSpacing;
             float _TickWidth;
+            fixed4 _BorderColor;
+            float _BorderWidth;
 
             v2f vert(appdata v)
             {
@@ -134,6 +139,17 @@ Shader "Pathogen/UIEntityBarCanvas"
                     float tickMask = (1.0 - smoothstep(0.0, _TickWidth, tickDist));
                     tickMask *= step(x, max(_FillPct, _TrailPct));
                     col.rgb = lerp(col.rgb, _TickColor.rgb, tickMask * _TickColor.a);
+                }
+
+                // Border
+                if (_BorderWidth > 0.001)
+                {
+                    float bx = min(i.uv.x, 1.0 - i.uv.x);
+                    float by = min(i.uv.y, 1.0 - i.uv.y);
+                    float borderDist = min(bx, by);
+                    float borderMask = 1.0 - smoothstep(0.0, _BorderWidth, borderDist);
+                    col.rgb = lerp(col.rgb, _BorderColor.rgb, borderMask * _BorderColor.a);
+                    col.a = max(col.a, borderMask * _BorderColor.a);
                 }
 
                 // Sprite alpha + vertex color

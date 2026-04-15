@@ -390,7 +390,7 @@ namespace Pathogen
             float[] arcAngles = { 180f, 150f, 120f, 90f };
 
             float skillSize = IsMobile ? 126f : 84f;
-            float upgSize = IsMobile ? 63f : 53f;
+            float upgSize = IsMobile ? 68f : 60f;
             var woodenMat = new Material(Shader.Find("Pathogen/UIGoldButton"));
 
             for (int i = 0; i < 4; i++)
@@ -449,17 +449,19 @@ namespace Pathogen
                 float upgOffset = skillSize * 0.78f + 10f;
                 upgRT.anchoredPosition = new Vector2(-0.707f, 0.707f) * upgOffset;
 
+                var upgBtnMat = new Material(Shader.Find("Pathogen/UIUpgradeButton"));
                 var upgImg = upgGO.AddComponent<Image>();
-                upgImg.material = woodenMat;      // shader handles rounded-rect shape + wooden gradient
+                upgImg.material = upgBtnMat;
                 upgImg.color = Color.white;
 
                 upgGO.AddComponent<CanvasGroup>();
                 upgGO.AddComponent<Button>();
 
-                var plusText = CreateUIText(upgGO.transform, "PlusLabel",
+                var chevronText = CreateUIText(upgGO.transform, "ChevronLabel",
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                    new Vector2(upgSize, upgSize), "+", (int)(upgSize * 0.55f), Color.black);
-                plusText.fontStyle = FontStyles.Bold;
+                    new Vector2(upgSize, upgSize), "^", (int)(upgSize * 0.75f), Color.white);
+                chevronText.fontStyle = FontStyles.Bold;
+                chevronText.alignment = TextAlignmentOptions.Midline;
 
                 skillBtn.upgradeButton = upgGO;
                 skillBtnComponents[i] = skillBtn;
@@ -481,6 +483,7 @@ namespace Pathogen
                 new Vector2(80f, 35f), "MUTATE", 12, Color.white);
 
             // ── Recall ──
+            RectTransform recallBtnRect = null;
             if (IsMobile)
             {
                 float recallBtnSize = 126f;
@@ -488,6 +491,7 @@ namespace Pathogen
                     new Vector2(0.5f, 0f), new Vector2(-10f, 100f),
                     recallBtnSize, new Color(0.2f, 0.5f, 0.8f, 0.7f), "B", true, true);
                 hud.recallButton = recallBtnGO.AddComponent<Button>();
+                recallBtnRect = recallBtnGO.GetComponent<RectTransform>();
 
                 var recallBar = CreateUIImage(canvasGO.transform, "RecallProgressBar",
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -60f),
@@ -532,6 +536,8 @@ namespace Pathogen
             var joystick = joystickBG.AddComponent<VirtualJoystick>();
             joystick.handle = joystickHandle.GetComponent<RectTransform>();
             joystick.handleRange = 70f;
+            if (recallBtnRect != null)
+                joystick.ignoreRects = new RectTransform[] { recallBtnRect };
 
             var playerInput = playerChampion.GetComponent<PlayerController>();
             if (playerInput != null) playerInput.moveJoystick = joystick;
