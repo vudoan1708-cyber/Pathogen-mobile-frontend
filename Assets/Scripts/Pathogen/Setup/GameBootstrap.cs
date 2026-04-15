@@ -342,6 +342,9 @@ namespace Pathogen
             var hud = canvasGO.AddComponent<HUDManager>();
             hud.playerChampion = playerChampion;
 
+            // ── Human Health Bar ──
+            HumanHealthBar.Create(canvasGO.transform);
+
             // ── Champion Stats (world-space, follows each champion) ──
             CreateChampionWorldStats(playerChampion);
             CreateChampionWorldStats(aiChampion);
@@ -351,17 +354,22 @@ namespace Pathogen
                 new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -20f),
                 new Vector2(150f, 25f), "0", 16, new Color(1f, 0.85f, 0.2f));
 
-            // ── Skill Buttons ──
+            // ── Skill Buttons (each with inline "+" upgrade button + flash overlay) ──
             var skillNames = new string[] { "Q", "W", "E", "R" };
             hud.skillButtons = new Button[4];
             hud.skillCooldownTexts = new TextMeshProUGUI[4];
             var playerInputRef = playerChampion.GetComponent<PlayerController>();
+            var skillBtnComponents = new SkillButton[4];
 
             float arcCenterX = -(AutoAttackButton.MarginRight + AutoAttackButton.BigButtonSize * 0.5f);
             float arcCenterY = AutoAttackButton.MarginBottom + AutoAttackButton.BigButtonSize * 0.5f;
             float arcRadius = AutoAttackButton.BigButtonSize * 0.5f + AutoAttackButton.SmallButtonSize
-                + AutoAttackButton.ButtonGap + 80f;
+                + AutoAttackButton.ButtonGap + 86f;
             float[] arcAngles = { 180f, 150f, 120f, 90f };
+
+            float skillSize = IsMobile ? 122f : 77f;
+            float upgSize = IsMobile ? 55f : 45f;
+            var woodenMat = new Material(Shader.Find("Pathogen/UIGoldButton"));
 
             for (int i = 0; i < 4; i++)
             {
@@ -380,7 +388,7 @@ namespace Pathogen
 
                 var btnGO = CreateButton(canvasGO.transform, $"SkillBtn_{skillNames[i]}",
                     new Vector2(IsMobile ? 1f : 0.5f, 0f), pos,
-                    IsMobile ? 110f : 65f, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile, IsMobile);
+                    skillSize, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile, IsMobile);
 
                 var btn = btnGO.AddComponent<Button>();
                 hud.skillButtons[i] = btn;
@@ -390,7 +398,56 @@ namespace Pathogen
                 skillBtn.playerController = playerInputRef;
 
                 hud.skillCooldownTexts[i] = btnGO.GetComponentInChildren<TextMeshProUGUI>();
+
+                // ── Flash overlay (full-size circle over the skill button, invisible by default)
+                var flashGO = new GameObject("FlashOverlay", typeof(RectTransform));
+                flashGO.transform.SetParent(btnGO.transform, false);
+                var flashRT = flashGO.GetComponent<RectTransform>();
+                flashRT.anchorMin = new Vector2(0.5f, 0.5f);
+                flashRT.anchorMax = new Vector2(0.5f, 0.5f);
+                flashRT.pivot = new Vector2(0.5f, 0.5f);
+                flashRT.anchoredPosition = Vector2.zero;
+                flashRT.sizeDelta = new Vector2(skillSize, skillSize);
+                var flashImg = flashGO.AddComponent<Image>();
+                flashImg.sprite = circleSprite;
+                flashImg.color = Color.clear;
+                flashImg.raycastTarget = false;
+                skillBtn.flashOverlay = flashImg;
+
+                // ── "+" upgrade button (gold shader, diagonal outward from skill button)
+                var upgGO = new GameObject($"UpgradeBtn_{skillNames[i]}", typeof(RectTransform));
+                upgGO.transform.SetParent(btnGO.transform, false);
+                var upgRT = upgGO.GetComponent<RectTransform>();
+                upgRT.anchorMin = new Vector2(0.5f, 0.5f);
+                upgRT.anchorMax = new Vector2(0.5f, 0.5f);
+                upgRT.pivot = new Vector2(0.5f, 0.5f);
+                upgRT.sizeDelta = new Vector2(upgSize, upgSize);
+
+                // Position at -45° (upper-left diagonal) from skill button centre
+                float upgOffset = skillSize * 0.65f;
+                upgRT.anchoredPosition = new Vector2(-0.707f, 0.707f) * upgOffset;
+
+                var upgImg = upgGO.AddComponent<Image>();
+                upgImg.material = woodenMat;      // shader handles rounded-rect shape + wooden gradient
+                upgImg.color = Color.white;
+
+                upgGO.AddComponent<CanvasGroup>();
+                upgGO.AddComponent<Button>();
+
+                var plusText = CreateUIText(upgGO.transform, "PlusLabel",
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+                    new Vector2(upgSize, upgSize), "+", (int)(upgSize * 0.55f), Color.black);
+                plusText.fontStyle = FontStyles.Bold;
+
+                skillBtn.upgradeButton = upgGO;
+                skillBtnComponents[i] = skillBtn;
             }
+
+            // ── Skill Level-Up coordinator (stagger animation + event wiring)
+            var levelUpUI = canvasGO.AddComponent<SkillLevelUpUI>();
+            levelUpUI.champion = playerChampion;
+            levelUpUI.skillButtons = skillBtnComponents;
+            hud.skillLevelUpUI = levelUpUI;
 
             // ── Shop Button ──
             var shopBtnGO = CreateUIImage(canvasGO.transform, "ShopButton",
@@ -404,13 +461,13 @@ namespace Pathogen
             // ── Joystick (bottom left, circular) ──
             var joystickBG = CreateUIImage(canvasGO.transform, "JoystickBG",
                 new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110f, 110f),
-                new Vector2(220f, 220f), new Color(1f, 1f, 1f, 0.1f));
+                new Vector2(225f, 225f), new Color(1f, 1f, 1f, 0.1f));
             joystickBG.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
             MakeCircular(joystickBG);
 
             var joystickHandle = CreateUIImage(joystickBG.transform, "JoystickHandle",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(70f, 70f), new Color(1f, 1f, 1f, 0.45f));
+                new Vector2(75f, 75f), new Color(1f, 1f, 1f, 0.45f));
             MakeCircular(joystickHandle);
 
             var joystick = joystickBG.AddComponent<VirtualJoystick>();

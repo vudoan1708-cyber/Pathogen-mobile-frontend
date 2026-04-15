@@ -39,6 +39,62 @@ namespace Pathogen
         void Start()
         {
             champion = GetComponent<Champion>();
+
+            // AI auto-allocates skill points immediately
+            champion.OnSkillPointsChanged += _ => AutoAllocateSkillPoints();
+            AutoAllocateSkillPoints();
+        }
+
+        /// <summary>
+        /// Spends all pending skill points in a sensible order:
+        /// unlock Q → W → E, R when eligible, then rank up evenly.
+        /// </summary>
+        private void AutoAllocateSkillPoints()
+        {
+            while (champion.pendingSkillPoints > 0)
+            {
+                bool spent = false;
+
+                // Priority: unlock any still-locked basic skill first (0, 1, 2),
+                // then ultimate (3), then rank up lowest-rank skill.
+                for (int i = 0; i < 3; i++)
+                {
+                    if (champion.skills[i].skillLevel == 0 && champion.CanRankUpSkill(i))
+                    {
+                        champion.AllocateSkillPoint(i);
+                        spent = true;
+                        break;
+                    }
+                }
+                if (spent) continue;
+
+                // Try ultimate
+                if (champion.CanRankUpSkill(3))
+                {
+                    champion.AllocateSkillPoint(3);
+                    continue;
+                }
+
+                // Rank up the lowest-level basic skill
+                int lowest = -1;
+                int lowestRank = int.MaxValue;
+                for (int i = 0; i < 3; i++)
+                {
+                    if (champion.CanRankUpSkill(i) && champion.skills[i].skillLevel < lowestRank)
+                    {
+                        lowestRank = champion.skills[i].skillLevel;
+                        lowest = i;
+                    }
+                }
+
+                if (lowest >= 0)
+                {
+                    champion.AllocateSkillPoint(lowest);
+                    continue;
+                }
+
+                break; // No valid allocation possible (shouldn't happen)
+            }
         }
 
         void Update()

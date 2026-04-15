@@ -145,6 +145,12 @@ namespace Pathogen
         public MutationTier tier = MutationTier.Locked;
         public float currentCooldown;
 
+        // Skill-point leveling (separate from MutationTier / Bio upgrades)
+        public int skillLevel;                          // 0 = locked, 1+ = unlocked ranks
+        public const int MaxSkillRank = 3;              // All skills cap at rank 3 (4 × 3 = 12 levels)
+        private const float DamagePerRank = 0.15f;      // +15 % base damage per rank above 1
+        private const float CdrPerRank = 0.05f;         // +5 % CDR per rank above 1 (doubles after branch)
+
         public bool IsReady => tier != MutationTier.Locked && currentCooldown <= 0f;
         public bool IsUnlocked => tier != MutationTier.Locked;
 
@@ -173,12 +179,16 @@ namespace Pathogen
 
         public float GetDamage()
         {
-            return definition.baseDamage * (1f + bonusDamagePercent + bonusAllScaling);
+            float levelBonus = Mathf.Max(0, skillLevel - 1) * DamagePerRank;
+            return definition.baseDamage * (1f + levelBonus + bonusDamagePercent + bonusAllScaling);
         }
 
         public float GetCooldown(float cdrPercent)
         {
-            return definition.cooldown * (1f - Mathf.Clamp01(cdrPercent));
+            // CDR per rank doubles once a branch (Alpha/Omega) is chosen
+            float cdrMultiplier = (tier >= MutationTier.Alpha) ? 2f : 1f;
+            float levelCdr = Mathf.Max(0, skillLevel - 1) * CdrPerRank * cdrMultiplier;
+            return definition.cooldown * (1f - Mathf.Clamp01(cdrPercent + levelCdr));
         }
 
         public void StartCooldown(float cdrPercent)

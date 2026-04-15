@@ -5,14 +5,15 @@ using TMPro;
 namespace Pathogen
 {
     /// <summary>
-    /// Human health bar with gradient fill (red→yellow→green),
+    /// Human health bar with shader-driven gradient fill (red→yellow→green),
     /// animated transitions, and condition labels.
+    /// Call HumanHealthBar.Create() to build the full UI hierarchy.
     /// </summary>
     public class HumanHealthBar : MonoBehaviour
     {
         [Header("References")]
         public Image gradientFill;
-        public Image animatedTrail; // Trails behind the fill to show recent change
+        public Image animatedTrail;
         public TextMeshProUGUI percentText;
         public TextMeshProUGUI conditionText;
         public TextMeshProUGUI deathLabel;
@@ -26,7 +27,20 @@ namespace Pathogen
         private float targetHealth = 50f;
         private RectTransform fillRT;
         private RectTransform trailRT;
-        private float barWidth;
+
+        // ─── LAYOUT CONSTANTS ───────────────────────────────────────────
+
+        private const float ContainerWidth = 650f;
+        private const float ContainerHeight = 120f;
+        private const float BarAnchorMin = 0.32f;     // vertical anchor bottom
+        private const float BarAnchorMax = 0.75f;     // vertical anchor top
+
+        private const int LabelFontSize = 22;
+        private const int ConditionFontSize = 26;
+        private const int PercentFontSize = 24;
+        private const int SubtitleFontSize = 20;
+
+        // ─── LIFECYCLE ──────────────────────────────────────────────────
 
         void Start()
         {
@@ -34,8 +48,6 @@ namespace Pathogen
                 fillRT = gradientFill.GetComponent<RectTransform>();
             if (animatedTrail != null)
                 trailRT = animatedTrail.GetComponent<RectTransform>();
-            if (fillRT != null)
-                barWidth = fillRT.transform.parent.GetComponent<RectTransform>().sizeDelta.x;
 
             if (GameManager.Instance != null)
                 GameManager.Instance.OnHumanHealthChanged += OnHealthChanged;
@@ -45,20 +57,20 @@ namespace Pathogen
 
         void Update()
         {
-            // Animate fill toward target
             if (Mathf.Abs(displayedHealth - targetHealth) > 0.1f)
             {
                 displayedHealth = Mathf.MoveTowards(displayedHealth, targetHealth, animSpeed * Time.deltaTime * 30f);
                 UpdateFillPosition(displayedHealth);
             }
 
-            // Trail follows slower — shows the "impact" of the shift
             if (Mathf.Abs(trailHealth - targetHealth) > 0.1f)
             {
                 trailHealth = Mathf.MoveTowards(trailHealth, targetHealth, animSpeed * Time.deltaTime * 10f);
                 UpdateTrailPosition(trailHealth);
             }
         }
+
+        // ─── HEALTH UPDATES ─────────────────────────────────────────────
 
         private void OnHealthChanged(float health)
         {
@@ -86,21 +98,17 @@ namespace Pathogen
         private void UpdateTrailPosition(float health)
         {
             if (trailRT == null) return;
-            float pct = Mathf.Clamp01(health / 100f);
-            // Trail shows between displayed and target
             float displayPct = Mathf.Clamp01(displayedHealth / 100f);
             float trailPct = Mathf.Clamp01(trailHealth / 100f);
 
             if (trailPct > displayPct)
             {
-                // Health decreased — trail shows the lost amount in red
                 trailRT.anchorMin = new Vector2(displayPct, 0f);
                 trailRT.anchorMax = new Vector2(trailPct, 1f);
                 trailRT.GetComponent<Image>().color = new Color(1f, 0.2f, 0.1f, 0.6f);
             }
             else
             {
-                // Health increased — trail shows the gained amount in green
                 trailRT.anchorMin = new Vector2(trailPct, 0f);
                 trailRT.anchorMax = new Vector2(displayPct, 1f);
                 trailRT.GetComponent<Image>().color = new Color(0.2f, 1f, 0.3f, 0.6f);
@@ -143,28 +151,130 @@ namespace Pathogen
             }
         }
 
+        // ─── FACTORY ────────────────────────────────────────────────────
+
         /// <summary>
-        /// Creates the gradient texture: red → yellow → light green → green.
+        /// Builds the complete human health bar UI hierarchy under the given canvas
+        /// and returns the configured component. All layout values live here.
         /// </summary>
-        public static Texture2D CreateGradientTexture(int width)
+        public static HumanHealthBar Create(Transform canvasTransform)
         {
-            var tex = new Texture2D(width, 1, TextureFormat.RGBA32, false);
-            for (int x = 0; x < width; x++)
-            {
-                float t = (float)x / (width - 1);
-                Color color;
-                if (t < 0.33f)
-                    color = Color.Lerp(new Color(0.9f, 0.1f, 0.1f), new Color(1f, 0.85f, 0.1f), t / 0.33f);
-                else if (t < 0.66f)
-                    color = Color.Lerp(new Color(1f, 0.85f, 0.1f), new Color(0.5f, 0.9f, 0.2f), (t - 0.33f) / 0.33f);
-                else
-                    color = Color.Lerp(new Color(0.5f, 0.9f, 0.2f), new Color(0.2f, 0.85f, 0.2f), (t - 0.66f) / 0.34f);
-                tex.SetPixel(x, 0, color);
-            }
-            tex.Apply();
-            tex.wrapMode = TextureWrapMode.Clamp;
-            tex.filterMode = FilterMode.Bilinear;
-            return tex;
+            // Container
+            var container = new GameObject("HumanHealthContainer", typeof(RectTransform));
+            container.transform.SetParent(canvasTransform, false);
+            var rt = container.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 1f);
+            rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -10f);
+            rt.sizeDelta = new Vector2(ContainerWidth, ContainerHeight);
+
+            var cg = container.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+
+            // Dark background bar
+            var barBG = CreateRect(container.transform, "BarBG");
+            var barBGRT = barBG.GetComponent<RectTransform>();
+            barBGRT.anchorMin = new Vector2(0f, BarAnchorMin);
+            barBGRT.anchorMax = new Vector2(1f, BarAnchorMax);
+            barBGRT.offsetMin = Vector2.zero;
+            barBGRT.offsetMax = Vector2.zero;
+            barBG.AddComponent<Image>().color = new Color(0.12f, 0.12f, 0.15f, 0.9f);
+
+            // Gradient fill — shader handles red→yellow→green + organic noise + pulse
+            var gradientMat = new Material(Shader.Find("Pathogen/UIHealthGradient"));
+
+            var fillGO = CreateRect(barBG.transform, "GradientFill");
+            var fillRt = fillGO.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = new Vector2(0.5f, 1f);
+            fillRt.offsetMin = Vector2.zero;
+            fillRt.offsetMax = Vector2.zero;
+            var fillImg = fillGO.AddComponent<Image>();
+            fillImg.material = gradientMat;
+            fillImg.color = Color.white;
+
+            // Animated trail
+            var trailGO = CreateRect(barBG.transform, "Trail");
+            var trailRt = trailGO.GetComponent<RectTransform>();
+            trailRt.anchorMin = new Vector2(0.5f, 0f);
+            trailRt.anchorMax = new Vector2(0.5f, 1f);
+            trailRt.offsetMin = Vector2.zero;
+            trailRt.offsetMax = Vector2.zero;
+            var trailImg = trailGO.AddComponent<Image>();
+            trailImg.color = new Color(1f, 0.2f, 0.1f, 0.5f);
+
+            // Labels
+            var death = CreateLabel(container.transform, "DeathLabel",
+                new Vector2(0f, 0.22f), new Vector2(60f, 0f), new Vector2(160f, 30f),
+                "\u2620 DEATH 0%", LabelFontSize, new Color(1f, 0.3f, 0.3f));
+
+            CreateLabel(container.transform, "MidLabel",
+                new Vector2(0.5f, 0.22f), Vector2.zero, new Vector2(80f, 30f),
+                "50%", LabelFontSize, new Color(0.8f, 0.8f, 0.8f));
+
+            var healthy = CreateLabel(container.transform, "HealthyLabel",
+                new Vector2(1f, 0.22f), new Vector2(-70f, 0f), new Vector2(200f, 30f),
+                "HEALTHY 100%\u2728", LabelFontSize, new Color(0.3f, 1f, 0.3f));
+
+            CreateLabel(container.transform, "HostCondLabel",
+                new Vector2(0.5f, 0.1f), Vector2.zero, new Vector2(260f, 26f),
+                "HOST CONDITION", SubtitleFontSize, new Color(0.5f, 0.5f, 0.5f));
+
+            var condition = CreateLabel(container.transform, "ConditionText",
+                new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(500f, 35f),
+                "STABLE \u2014 MILD SYMPTOMS", ConditionFontSize, new Color(1f, 0.9f, 0.3f));
+            condition.fontStyle = FontStyles.Bold;
+
+            var percent = CreateLabel(container.transform, "PercentText",
+                new Vector2(0.5f, 0.55f), Vector2.zero, new Vector2(110f, 32f),
+                "50%", PercentFontSize, Color.white);
+            percent.fontStyle = FontStyles.Bold;
+
+            // Wire component
+            var hhBar = container.AddComponent<HumanHealthBar>();
+            hhBar.gradientFill = fillImg;
+            hhBar.animatedTrail = trailImg;
+            hhBar.percentText = percent;
+            hhBar.conditionText = condition;
+            hhBar.deathLabel = death;
+            hhBar.healthyLabel = healthy;
+
+            return hhBar;
+        }
+
+        // ─── HELPERS ────────────────────────────────────────────────────
+
+        private static GameObject CreateRect(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            return go;
+        }
+
+        private static TextMeshProUGUI CreateLabel(Transform parent, string name,
+            Vector2 anchor, Vector2 pos, Vector2 size,
+            string text, int fontSize, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var labelRT = go.GetComponent<RectTransform>();
+            labelRT.anchorMin = anchor;
+            labelRT.anchorMax = anchor;
+            labelRT.pivot = new Vector2(0.5f, 0.5f);
+            labelRT.anchoredPosition = pos;
+            labelRT.sizeDelta = size;
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = fontSize;
+            tmp.color = color;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.font = GameBootstrap.UIFont;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            return tmp;
         }
     }
 }

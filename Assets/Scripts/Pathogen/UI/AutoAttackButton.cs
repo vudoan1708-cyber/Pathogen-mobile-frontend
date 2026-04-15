@@ -16,8 +16,8 @@ namespace Pathogen
 
         public const float MarginRight = 80f;
         public const float MarginBottom = 30f;
-        public const float BigButtonSize = 165f;
-        public const float SmallButtonSize = 135f;
+        public const float BigButtonSize = 177f;
+        public const float SmallButtonSize = 147f;
         public const float ButtonGap = 24f;
         public const float ActiveRingPadding = 12f;
         public const float MaxDragPixels = 150f;

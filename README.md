@@ -47,7 +47,7 @@ The central mechanic. Starts at 50% and shifts based on both teams' actions.
 |--------|-------------|
 | Champion kill (early, <10 takedowns) | 1% per kill |
 | Champion kill (after 10 takedowns) | **3% per kill** (scales up) |
-| Infection Node / Sentinel destroyed | 5% |
+| Cyst / Sentinel destroyed | 5% |
 | Organ: Skin (Epidermis) | 3% |
 | Organ: Lymph Vessels | 4% |
 | Organ: Stomach | 5% |
@@ -120,7 +120,7 @@ The game's currency, earned through farming. **Minion kills do not affect human 
 |--------|-------------|-----|
 | Minion kill | 25 | 40 |
 | Champion kill | 300 | 200 |
-| Infection Node / Sentinel destroyed | 150 | 100 |
+| Cyst / Sentinel destroyed | 150 | 100 |
 | Passive income | 2/sec | — |
 
 ### Shared Gold & XP
@@ -166,7 +166,7 @@ Additional passive slots:
 
 ## Lane Structures
 
-Both teams have defensive structures — **Infection Nodes** (Virus) and **Sentinels** (Immune). They behave identically:
+Both teams have defensive structures — **Cysts** (Virus) and **Sentinels** (Immune). They behave identically:
 
 - **First-in-range targeting:** Whichever enemy entity enters the structure's range first gets targeted. If minions arrive first, the structure fires at minions until they're cleared before moving to champions.
 - **Champion aggro override:** If an enemy champion attacks an allied champion within the structure's range, the structure immediately breaks minion targeting and switches to that enemy champion.

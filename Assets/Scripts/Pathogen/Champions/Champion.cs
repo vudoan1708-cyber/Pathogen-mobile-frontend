@@ -17,10 +17,11 @@ namespace Pathogen
 
         [Header("Leveling")]
         public int level = 1;
-        public int maxLevel = 18;
+        public int maxLevel = 12;
         public float currentXP;
         public float xpToNextLevel = 100f;
         public float xpScalePerLevel = 50f;
+        public int pendingSkillPoints;
 
         [Header("Level-Up Stat Gains")]
         public float healthPerLevel = 50f;
@@ -56,8 +57,12 @@ namespace Pathogen
 
         private Color originalColor;
 
+        // Ultimate rank-up level gates (unlock at 4, upgrade at 8 and 12)
+        public static readonly int[] UltimateLevelGates = { 4, 8, 12 };
+
         // Events
         public event Action<int> OnLevelUp;
+        public event Action<int> OnSkillPointsChanged;    // Fires with current pendingSkillPoints
         public event Action<float> OnBioCurrencyChanged;
         public event Action<float, float> OnManaChanged;
         public event Action OnRespawn;
@@ -110,12 +115,11 @@ namespace Pathogen
         public void InitializeSkills(SkillDefinition[] definitions)
         {
             for (int i = 0; i < 4 && i < definitions.Length; i++)
-            {
                 skills[i] = new Skill(definitions[i]);
-                // Unlock Q (skill 0) at game start for free
-                if (i == 0)
-                    skills[i].tier = MutationTier.Base;
-            }
+
+            // Grant first skill point — player chooses which skill to unlock
+            pendingSkillPoints = 1;
+            OnSkillPointsChanged?.Invoke(pendingSkillPoints);
         }
 
         public bool UseSkill(int index, Vector3 direction, Vector3 targetPosition)
@@ -232,9 +236,11 @@ namespace Pathogen
             var vis = skill.definition.visuals;
             var enemies = GameManager.Instance.GetEntitiesInRange(
                 transform.position, 3f, team == Team.Virus ? Team.Immune : Team.Virus);
-            foreach (var enemy in enemies)
+            // Copy: TakeDamage can kill entities and modify the source list
+            var snapshot = enemies.ToArray();
+            foreach (var enemy in snapshot)
             {
-                if (enemy.entityType != EntityType.Structure)
+                if (enemy != null && !enemy.IsDead && enemy.entityType != EntityType.Structure)
                     enemy.TakeDamage(skill.GetDamage(), skill.definition.isMagicDamage, this, vis);
             }
         }
@@ -246,9 +252,10 @@ namespace Pathogen
             var enemies = GameManager.Instance.GetEntitiesInRange(
                 transform.position, skill.definition.aoeRadius, enemyTeam);
 
-            foreach (var enemy in enemies)
+            var snapshot = enemies.ToArray();
+            foreach (var enemy in snapshot)
             {
-                if (enemy.entityType != EntityType.Structure)
+                if (enemy != null && !enemy.IsDead && enemy.entityType != EntityType.Structure)
                     enemy.TakeDamage(skill.GetDamage(), skill.definition.isMagicDamage, this, vis);
             }
 
@@ -344,9 +351,54 @@ namespace Pathogen
             magicResist += magicResistPerLevel;
             xpToNextLevel = 100f + (level - 1) * xpScalePerLevel;
 
+            // Grant a skill rank-up point (free, player chooses which skill)
+            pendingSkillPoints++;
+            OnSkillPointsChanged?.Invoke(pendingSkillPoints);
+
             InvokeHealthChanged();
             OnManaChanged?.Invoke(currentMana, maxMana);
             OnLevelUp?.Invoke(level);
+        }
+
+        /// <summary>
+        /// Can the player put a skill point into this slot right now?
+        /// </summary>
+        public bool CanRankUpSkill(int index)
+        {
+            if (pendingSkillPoints <= 0) return false;
+            var skill = skills[index];
+            if (skill == null) return false;
+            if (skill.skillLevel >= Skill.MaxSkillRank) return false;
+
+            // Ultimate (index 3): gated to specific champion levels
+            if (index == 3)
+            {
+                int requiredLevel = skill.skillLevel < UltimateLevelGates.Length
+                    ? UltimateLevelGates[skill.skillLevel]
+                    : int.MaxValue;
+                if (level < requiredLevel) return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Spend one pending skill point to unlock / rank up a skill.
+        /// Returns true on success.
+        /// </summary>
+        public bool AllocateSkillPoint(int index)
+        {
+            if (!CanRankUpSkill(index)) return false;
+
+            var skill = skills[index];
+
+            if (!skill.IsUnlocked)
+                skill.tier = MutationTier.Base;
+
+            skill.skillLevel++;
+            pendingSkillPoints--;
+            OnSkillPointsChanged?.Invoke(pendingSkillPoints);
+            return true;
         }
 
         public void AddGold(float amount)
@@ -393,9 +445,9 @@ namespace Pathogen
                     skills[i].currentCooldown = 0f;
             }
 
-            // Start respawn countdown
+            // Start respawn countdown — quadratic scaling: round(4.75 + 0.25 × level²)
             isRespawning = true;
-            respawnTimer = respawnTime + (level * 0.5f);
+            respawnTimer = Mathf.Round(4.75f + 0.25f * level * level);
             lastRespawnSecond = -1;
 
             var deathRenderer = GetComponent<Renderer>();

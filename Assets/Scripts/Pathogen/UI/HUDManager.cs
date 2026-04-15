@@ -18,6 +18,7 @@ namespace Pathogen
         public TextMeshProUGUI bioCurrencyText;
         public Button[] skillButtons;
         public TextMeshProUGUI[] skillCooldownTexts;
+        public SkillLevelUpUI skillLevelUpUI;
         public Button shopButton;
         public GameObject shopPanel;
         public TextMeshProUGUI gameOverText;
@@ -29,6 +30,7 @@ namespace Pathogen
         private readonly Color readyColor = new Color(0.3f, 0.8f, 0.3f);
         private readonly Color cooldownColor = new Color(0.4f, 0.4f, 0.4f);
         private readonly Color lockedColor = new Color(0.2f, 0.2f, 0.2f);
+        private readonly Color noManaColor = new Color(0.25f, 0.25f, 0.45f); // dark blue-gray
 
         private CameraController cameraController;
 
@@ -114,6 +116,12 @@ namespace Pathogen
                     img.color = cooldownColor;
                     if (skillCooldownTexts != null && i < skillCooldownTexts.Length)
                         skillCooldownTexts[i].text = Mathf.CeilToInt(skill.currentCooldown).ToString();
+                }
+                else if (playerChampion.currentMana < skill.definition.manaCost)
+                {
+                    img.color = noManaColor;
+                    if (skillCooldownTexts != null && i < skillCooldownTexts.Length)
+                        skillCooldownTexts[i].text = skill.definition.skillName;
                 }
                 else
                 {
