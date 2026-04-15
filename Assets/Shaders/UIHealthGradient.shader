@@ -3,6 +3,7 @@ Shader "Pathogen/UIHealthGradient"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
+        _Roundness      ("Corner Roundness", Range(0, 0.5))  = 0.08
         _PulseSpeed     ("Pulse Speed",     Range(0.1, 3))   = 0.8
         _PulseIntensity ("Pulse Intensity", Range(0, 0.2))   = 0.06
         _NoiseScale     ("Noise Scale",     Range(2, 30))    = 12
@@ -80,6 +81,15 @@ Shader "Pathogen/UIHealthGradient"
             float _NoiseScale;
             float _NoiseAmount;
             float _EdgeGlow;
+            float _Roundness;
+
+            // ─── SDF ────────────────────────────────────────────────────
+
+            float sdRoundedBox(float2 p, float2 halfSize, float r)
+            {
+                float2 q = abs(p) - halfSize + r;
+                return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+            }
 
             // ─── NOISE ──────────────────────────────────────────────────
 
@@ -118,6 +128,12 @@ Shader "Pathogen/UIHealthGradient"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                float2 centred = i.uv - 0.5;
+
+                // ── Rounded-rect shape mask ──
+                float sdf = sdRoundedBox(centred, float2(0.5, 0.5), _Roundness);
+                float shapeMask = 1.0 - smoothstep(-0.01, 0.0, sdf);
+
                 float t = i.uv.x;   // 0 (left, death) → 1 (right, healthy)
 
                 // ── Organic noise distortion on the gradient ──
@@ -147,19 +163,17 @@ Shader "Pathogen/UIHealthGradient"
                 float pulse = sin(_Time.y * _PulseSpeed) * 0.5 + 0.5;
                 col += pulse * _PulseIntensity;
 
-                // ── Bright edge glow at the fill boundary (right edge of the bar) ──
-                float rightEdge = 1.0 - i.uv.x;
-                float edgeMask = smoothstep(0.08, 0.0, rightEdge);
-                col += edgeMask * _EdgeGlow;
+                // ── Inner edge highlight using SDF (no right-edge artifact) ──
+                float innerEdge = 1.0 - smoothstep(-0.06, -0.01, sdf);
+                col += innerEdge * _EdgeGlow * 0.4;
 
                 // ── Top/bottom edge highlight for depth ──
                 float yEdge = min(i.uv.y, 1.0 - i.uv.y);
-                float yGlow = smoothstep(0.15, 0.0, yEdge) * 0.12;
-                col += yGlow;
+                float yGlow = smoothstep(0.15, 0.0, yEdge) * 0.1;
+                col += yGlow * step(sdf, 0.0); // only inside shape
 
-                // ── Sprite alpha + vertex color ──
-                fixed4 texCol = tex2D(_MainTex, i.uv);
-                float alpha = texCol.a * i.color.a;
+                // ── Alpha: shape mask × vertex color ──
+                float alpha = shapeMask * i.color.a;
 
                 // ── UI clip rect ──
                 alpha *= UnityGet2DClipping(i.worldPosition.xy, _ClipRect);

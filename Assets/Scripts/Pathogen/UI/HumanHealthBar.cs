@@ -31,12 +31,12 @@ namespace Pathogen
         // ─── LAYOUT CONSTANTS ───────────────────────────────────────────
 
         private const float ContainerWidth = 650f;
-        private const float ContainerHeight = 120f;
-        private const float BarAnchorMin = 0.32f;     // vertical anchor bottom
-        private const float BarAnchorMax = 0.75f;     // vertical anchor top
+        private const float ContainerHeight = 140f;
+        private const float BarAnchorMin = 0.38f;     // vertical anchor bottom
+        private const float BarAnchorMax = 0.78f;     // vertical anchor top
 
         private const int LabelFontSize = 22;
-        private const int ConditionFontSize = 26;
+        private const int ConditionFontSize = 31;
         private const int PercentFontSize = 24;
         private const int SubtitleFontSize = 20;
 
@@ -207,30 +207,26 @@ namespace Pathogen
 
             // Labels
             var death = CreateLabel(container.transform, "DeathLabel",
-                new Vector2(0f, 0.22f), new Vector2(60f, 0f), new Vector2(160f, 30f),
-                "\u2620 DEATH 0%", LabelFontSize, new Color(1f, 0.3f, 0.3f));
-
-            CreateLabel(container.transform, "MidLabel",
-                new Vector2(0.5f, 0.22f), Vector2.zero, new Vector2(80f, 30f),
-                "50%", LabelFontSize, new Color(0.8f, 0.8f, 0.8f));
+                new Vector2(0f, 0.28f), new Vector2(60f, 0f), new Vector2(160f, 30f),
+                "DEATH 0%", LabelFontSize, new Color(1f, 0.3f, 0.3f));
 
             var healthy = CreateLabel(container.transform, "HealthyLabel",
-                new Vector2(1f, 0.22f), new Vector2(-70f, 0f), new Vector2(200f, 30f),
-                "HEALTHY 100%\u2728", LabelFontSize, new Color(0.3f, 1f, 0.3f));
-
-            CreateLabel(container.transform, "HostCondLabel",
-                new Vector2(0.5f, 0.1f), Vector2.zero, new Vector2(260f, 26f),
-                "HOST CONDITION", SubtitleFontSize, new Color(0.5f, 0.5f, 0.5f));
+                new Vector2(1f, 0.28f), new Vector2(-70f, 0f), new Vector2(200f, 30f),
+                "HEALTHY 100%", LabelFontSize, new Color(0.3f, 1f, 0.3f));
 
             var condition = CreateLabel(container.transform, "ConditionText",
-                new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(500f, 35f),
+                new Vector2(0.5f, 0f), new Vector2(0f, -9f), new Vector2(550f, 45f),
                 "STABLE \u2014 MILD SYMPTOMS", ConditionFontSize, new Color(1f, 0.9f, 0.3f));
             condition.fontStyle = FontStyles.Bold;
 
-            var percent = CreateLabel(container.transform, "PercentText",
-                new Vector2(0.5f, 0.55f), Vector2.zero, new Vector2(110f, 32f),
+            // Percent text on the bar itself — black outline so it stands out on bright colours
+            var percent = CreateLabel(barBG.transform, "PercentText",
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(110f, 32f),
                 "50%", PercentFontSize, Color.white);
             percent.fontStyle = FontStyles.Bold;
+            var outline = percent.gameObject.AddComponent<Outline>();
+            outline.effectColor = Color.black;
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
 
             // Wire component
             var hhBar = container.AddComponent<HumanHealthBar>();

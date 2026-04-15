@@ -174,7 +174,7 @@ Both teams have defensive structures — **Cysts** (Virus) and **Sentinels** (Im
 - **Homing projectiles:** Structure shots lock onto their target and cannot be dodged.
 - **Range ring:** A yellow-orange ring appears at the structure's base when any champion approaches within 3 units of its attack range.
 
-**Structure stats:** High HP (1500–2000), 80–100 damage per shot, 7–9 attack range, 0.88 attacks/second. Destroying one shifts human health by 5% and grants 150 Bio + 100 XP (shared among nearby allies).
+**Structure stats:** High HP (1500–2000), 80–100 damage per shot, 4 attack range, 0.88 attacks/second. Destroying one shifts human health by 5% and grants 150 Bio + 100 XP (shared among nearby allies).
 
 ---
 

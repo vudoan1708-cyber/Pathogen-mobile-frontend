@@ -25,7 +25,7 @@ namespace Pathogen
         public float rangedDamage = 15f;
         public float rangedSpeed = 2f;
         public float rangedArmor = 3f;
-        public float rangedAttackRange = 7f;
+        public float rangedAttackRange = 3.5f;
         public float rangedAttackSpeed = 1.0f;
 
         [Header("Waypoints")]

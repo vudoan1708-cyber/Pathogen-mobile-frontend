@@ -24,7 +24,7 @@ namespace Pathogen
 
         [Header("Aggro")]
         public float sightRange = 7f;
-        public float championLeashTime = 2f;
+        public float championLeashTime = 1.5f;
 
         [Header("Spacing")]
         public float separationRadius = 1.2f;
@@ -84,21 +84,14 @@ namespace Pathogen
                 return;
             }
 
-            // Champion leash: can't reach for 2s → drop aggro
+            // Champion leash: hard 1.5s cap — always ticking while chasing a champion
             if (aggroLockedOnChampion && aggroTarget != null)
             {
-                float dist = Vector3.Distance(transform.position, aggroTarget.transform.position);
-                if (dist > attackRange)
+                championAggroTimer += Time.deltaTime;
+                if (championAggroTimer >= championLeashTime)
                 {
-                    championAggroTimer += Time.deltaTime;
-                    if (championAggroTimer >= championLeashTime)
-                    {
-                        aggroTarget = null;
-                        aggroLockedOnChampion = false;
-                    }
-                }
-                else
-                {
+                    aggroTarget = null;
+                    aggroLockedOnChampion = false;
                     championAggroTimer = 0f;
                 }
                 return;
@@ -163,8 +156,9 @@ namespace Pathogen
             if (IsDead || enemyChampion == null || enemyChampion.IsDead) return;
             if (enemyChampion.team == team) return;
 
+            // Only aggro if enemy champion is within sight range + small buffer
             float dist = Vector3.Distance(transform.position, enemyChampion.transform.position);
-            if (dist > sightRange) return;
+            if (dist > sightRange + 1.5f) return;
 
             aggroTarget = enemyChampion;
             aggroLockedOnChampion = true;
@@ -269,9 +263,13 @@ namespace Pathogen
         private void AssignCombatOffset()
         {
             bool isFrontRow = minionType == MinionType.Melee || minionType == MinionType.ArmoredMelee;
-            float xOffset = isFrontRow ? Random.Range(-1f, 1f) : -5f + Random.Range(-1f, 1f);
+            // Ranged sit 3 units behind melee — far enough to stay separate,
+            // close enough that structures (range 4) can still target them.
+            float xOffset = isFrontRow ? Random.Range(-0.8f, 0.8f) : -2f + Random.Range(-0.5f, 0.5f);
 
-            float spread = 4.5f;
+            // Melee cluster tight (spread 1.5) so all stay within attack range.
+            // Ranged spread wider (2.5) since they have 7-unit range.
+            float spread = isFrontRow ? 1.5f : 2.5f;
             int count = 3;
             int idx = formationIndex < count ? formationIndex : formationIndex - count;
             float zBase = -(count - 1) * spread * 0.5f + idx * spread;

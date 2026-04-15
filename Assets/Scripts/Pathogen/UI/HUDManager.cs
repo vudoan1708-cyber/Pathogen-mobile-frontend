@@ -30,7 +30,8 @@ namespace Pathogen
         private readonly Color readyColor = new Color(0.3f, 0.8f, 0.3f);
         private readonly Color cooldownColor = new Color(0.4f, 0.4f, 0.4f);
         private readonly Color lockedColor = new Color(0.2f, 0.2f, 0.2f);
-        private readonly Color noManaColor = new Color(0.25f, 0.25f, 0.45f); // dark blue-gray
+        private readonly Color noManaColor = new Color(0.35f, 0.35f, 0.35f);
+        private readonly Color noManaTextColor = new Color(0.55f, 0.55f, 0.55f);
 
         private CameraController cameraController;
 
@@ -121,13 +122,19 @@ namespace Pathogen
                 {
                     img.color = noManaColor;
                     if (skillCooldownTexts != null && i < skillCooldownTexts.Length)
+                    {
                         skillCooldownTexts[i].text = skill.definition.skillName;
+                        skillCooldownTexts[i].color = noManaTextColor;
+                    }
                 }
                 else
                 {
                     img.color = readyColor;
                     if (skillCooldownTexts != null && i < skillCooldownTexts.Length)
+                    {
                         skillCooldownTexts[i].text = skill.definition.skillName;
+                        skillCooldownTexts[i].color = Color.white;
+                    }
                 }
             }
         }

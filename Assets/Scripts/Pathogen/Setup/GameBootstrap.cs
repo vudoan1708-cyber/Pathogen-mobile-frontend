@@ -367,8 +367,8 @@ namespace Pathogen
                 + AutoAttackButton.ButtonGap + 86f;
             float[] arcAngles = { 180f, 150f, 120f, 90f };
 
-            float skillSize = IsMobile ? 122f : 77f;
-            float upgSize = IsMobile ? 55f : 45f;
+            float skillSize = IsMobile ? 126f : 84f;
+            float upgSize = IsMobile ? 63f : 53f;
             var woodenMat = new Material(Shader.Find("Pathogen/UIGoldButton"));
 
             for (int i = 0; i < 4; i++)
@@ -424,7 +424,7 @@ namespace Pathogen
                 upgRT.sizeDelta = new Vector2(upgSize, upgSize);
 
                 // Position at -45° (upper-left diagonal) from skill button centre
-                float upgOffset = skillSize * 0.65f;
+                float upgOffset = skillSize * 0.78f;
                 upgRT.anchoredPosition = new Vector2(-0.707f, 0.707f) * upgOffset;
 
                 var upgImg = upgGO.AddComponent<Image>();
