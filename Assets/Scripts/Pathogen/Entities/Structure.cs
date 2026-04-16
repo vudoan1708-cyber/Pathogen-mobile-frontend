@@ -64,6 +64,7 @@ namespace Pathogen
                 aggroChampion = null;
             }
 
+            ResetConsecutiveHitsIfChampionLeftRange();
             FindTarget();
 
             if (attackTarget != null && !attackTarget.IsDead && structureAttackTimer <= 0f)
@@ -92,6 +93,21 @@ namespace Pathogen
             }
 
             UpdateRangeRing();
+        }
+
+        private void ResetConsecutiveHitsIfChampionLeftRange()
+        {
+            if (lastTarget == null) return;
+            if (lastTarget.entityType != EntityType.Champion) return;
+
+            bool outOfRange = lastTarget.IsDead ||
+                Vector3.Distance(transform.position, lastTarget.transform.position) > structureRange;
+
+            if (outOfRange)
+            {
+                consecutiveHits = 0;
+                lastTarget = null;
+            }
         }
 
         /// <summary>

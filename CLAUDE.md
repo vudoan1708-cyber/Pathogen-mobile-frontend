@@ -7,5 +7,6 @@
 - If anything can be on its own logic, or when the code feels like it needs comments to explain its logic, then create a utility function with a definitive name to explain that block of code instead.
 - Mobile-first development, use if statement to separate logic if need be but leave the non-mobile logic empty / untouched.
 - We're developing a MOBA mobile game, ensure every code decision is for mobile and multiplayer game logic.
+- Ensure screen size compatible, take small devices into consideration (small mobiles, large mobiles and tablets) when implementing UI elements.
 - Do add a log of what has been added / upgraded to the project for future context.
 - IL2CPP as the scripting backend for production builds needs to be considered when generating code.

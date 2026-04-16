@@ -340,9 +340,19 @@ namespace Pathogen
             var scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 1f;
+            scaler.matchWidthOrHeight = 0.5f;
             scaler.referencePixelsPerUnit = 100;
             canvasGO.AddComponent<GraphicRaycaster>();
+
+            var safeAreaGO = new GameObject("SafeArea", typeof(RectTransform));
+            safeAreaGO.transform.SetParent(canvasGO.transform, false);
+            var safeAreaRT = safeAreaGO.GetComponent<RectTransform>();
+            safeAreaRT.anchorMin = Vector2.zero;
+            safeAreaRT.anchorMax = Vector2.one;
+            safeAreaRT.offsetMin = Vector2.zero;
+            safeAreaRT.offsetMax = Vector2.zero;
+            safeAreaGO.AddComponent<SafeAreaFitter>();
+            var safeArea = safeAreaRT;
 
             // EventSystem — ensure it uses new Input System, not legacy
             var existingES = FindAnyObjectByType<EventSystem>();
@@ -365,14 +375,14 @@ namespace Pathogen
             hud.playerChampion = playerChampion;
 
             // ── Human Health Bar ──
-            HumanHealthBar.Create(canvasGO.transform);
+            HumanHealthBar.Create(safeArea);
 
             // ── Champion Stats (world-space, follows each champion) ──
             playerChampion.Stats = ChampionStats.Create(playerChampion.transform, playerChampion, playerChampion.championHeight);
             aiChampion.Stats = ChampionStats.Create(aiChampion.transform, aiChampion, aiChampion.championHeight);
 
             // Bio-currency (top left of screen HUD)
-            hud.bioCurrencyText = CreateUIText(canvasGO.transform, "BioText",
+            hud.bioCurrencyText = CreateUIText(safeArea, "BioText",
                 new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -20f),
                 new Vector2(150f, 25f), "0", 16, new Color(1f, 0.85f, 0.2f));
 
@@ -390,7 +400,7 @@ namespace Pathogen
             float[] arcAngles = { 180f, 150f, 120f, 90f };
 
             float skillSize = IsMobile ? 126f : 84f;
-            float upgSize = IsMobile ? 68f : 60f;
+            float upgSize = IsMobile ? 80f : 60f;
             var woodenMat = new Material(Shader.Find("Pathogen/UIGoldButton"));
 
             for (int i = 0; i < 4; i++)
@@ -408,7 +418,7 @@ namespace Pathogen
                     pos = new Vector2(-133f + i * 89f, 50f);
                 }
 
-                var btnGO = CreateButton(canvasGO.transform, $"SkillBtn_{skillNames[i]}",
+                var btnGO = CreateButton(safeArea, $"SkillBtn_{skillNames[i]}",
                     new Vector2(IsMobile ? 1f : 0.5f, 0f), pos,
                     skillSize, new Color(0.3f, 0.3f, 0.3f, 0.9f), skillNames[i], IsMobile, IsMobile);
 
@@ -445,9 +455,9 @@ namespace Pathogen
                 upgRT.pivot = new Vector2(0.5f, 0.5f);
                 upgRT.sizeDelta = new Vector2(upgSize, upgSize);
 
-                // Position at -45° (upper-left diagonal) from skill button centre
-                float upgOffset = skillSize * 0.78f + 10f;
-                upgRT.anchoredPosition = new Vector2(-0.707f, 0.707f) * upgOffset;
+                // Position at -50° (upper-left diagonal) from skill button centre
+                float upgOffset = skillSize * 0.78f + 20f;
+                upgRT.anchoredPosition = new Vector2(-0.766f, 0.643f) * upgOffset;
 
                 var upgBtnMat = new Material(Shader.Find("Pathogen/UIUpgradeButton"));
                 var upgImg = upgGO.AddComponent<Image>();
@@ -468,7 +478,7 @@ namespace Pathogen
             hud.skillLevelUpUI = levelUpUI;
 
             // ── Shop Button ──
-            var shopBtnGO = CreateUIImage(canvasGO.transform, "ShopButton",
+            var shopBtnGO = CreateUIImage(safeArea, "ShopButton",
                 new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-20f, -20f),
                 new Vector2(80f, 35f), new Color(0.6f, 0.5f, 0.1f, 0.9f));
             hud.shopButton = shopBtnGO.AddComponent<Button>();
@@ -481,13 +491,13 @@ namespace Pathogen
             if (IsMobile)
             {
                 float recallBtnSize = 126f;
-                var recallBtnGO = CreateButton(canvasGO.transform, "RecallButton",
+                var recallBtnGO = CreateButton(safeArea, "RecallButton",
                     new Vector2(0.5f, 0f), new Vector2(-30f, 100f),
                     recallBtnSize, new Color(0.2f, 0.5f, 0.8f, 0.7f), "B", true, true);
                 hud.recallButton = recallBtnGO.AddComponent<Button>();
                 recallBtnRect = recallBtnGO.GetComponent<RectTransform>();
 
-                var recallBar = CreateUIImage(canvasGO.transform, "RecallProgressBar",
+                var recallBar = CreateUIImage(safeArea, "RecallProgressBar",
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -60f),
                     new Vector2(200f, 16f), new Color(0.15f, 0.15f, 0.2f, 0.85f));
                 recallBar.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
@@ -516,7 +526,7 @@ namespace Pathogen
             }
 
             // ── Joystick (bottom left, circular) ──
-            var joystickBG = CreateUIImage(canvasGO.transform, "JoystickBG",
+            var joystickBG = CreateUIImage(safeArea, "JoystickBG",
                 new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(110f, 110f),
                 new Vector2(239f, 239f), new Color(1f, 1f, 1f, 0.1f));
             joystickBG.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 0.5f);
@@ -547,7 +557,7 @@ namespace Pathogen
 
                 Color btnFill = new Color(0.3f, 0.5f, 0.8f, 0.3f);
 
-                var champBtn = CreateButton(canvasGO.transform, "ChampionAttackBtn",
+                var champBtn = CreateButton(safeArea, "ChampionAttackBtn",
                     new Vector2(1f, 0f),
                     new Vector2(-(attackButtonMarginRight + bigBtn * 0.5f), attackButtonMarginBottom + bigBtn * 0.5f),
                     bigBtn, btnFill, "ATK", true, true);
@@ -557,7 +567,7 @@ namespace Pathogen
                 champAtk.activeRing = CreateActiveRing(champBtn.transform, bigBtn);
                 champAtk.content = champBtn.transform.Find("Label").gameObject;
 
-                var minionBtn = CreateButton(canvasGO.transform, "MinionAttackBtn",
+                var minionBtn = CreateButton(safeArea, "MinionAttackBtn",
                     new Vector2(1f, 0f),
                     new Vector2(-(attackButtonMarginRight + bigBtn + btnGap + smallBtn * 0.5f), attackButtonMarginBottom + bigBtn * 0.5f),
                     smallBtn, btnFill, "M", true, true);
@@ -568,7 +578,7 @@ namespace Pathogen
                 minionAtk.content = minionBtn.transform.Find("Label").gameObject;
 
                 float structY = attackButtonMarginBottom + bigBtn + btnGap + smallBtn * 0.5f;
-                var structBtn = CreateButton(canvasGO.transform, "StructureAttackBtn",
+                var structBtn = CreateButton(safeArea, "StructureAttackBtn",
                     new Vector2(1f, 0f),
                     new Vector2(-(attackButtonMarginRight + bigBtn * 0.5f), structY),
                     smallBtn, btnFill, "S", true, true);
@@ -579,7 +589,7 @@ namespace Pathogen
                 structAtk.content = structBtn.transform.Find("Label").gameObject;
 
                 float cancelY = structY + smallBtn * 0.5f + 200f + smallBtn * 0.3f;
-                var cancelBtn = CreateButton(canvasGO.transform, "SkillCancelBtn",
+                var cancelBtn = CreateButton(safeArea, "SkillCancelBtn",
                     new Vector2(1f, 0f),
                     new Vector2(-(attackButtonMarginRight + bigBtn * 0.5f), cancelY),
                     smallBtn, btnFill, "X", true, true);
@@ -590,7 +600,7 @@ namespace Pathogen
             }
 
             // ── Shop Panel (hidden by default) ──
-            var shopPanel = CreateUIImage(canvasGO.transform, "ShopPanel",
+            var shopPanel = CreateUIImage(safeArea, "ShopPanel",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(500f, 400f), new Color(0.1f, 0.1f, 0.15f, 0.95f));
             shopPanel.SetActive(false);
@@ -605,7 +615,7 @@ namespace Pathogen
                 new Vector2(400f, 200f), "Skill upgrades coming soon.\nPress [B] to close.", 14, Color.gray);
 
             // ── Game Over Panel ──
-            var gameOverPanel = CreateUIImage(canvasGO.transform, "GameOverPanel",
+            var gameOverPanel = CreateUIImage(safeArea, "GameOverPanel",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(500f, 300f), new Color(0f, 0f, 0f, 0.9f));
             gameOverPanel.SetActive(false);
