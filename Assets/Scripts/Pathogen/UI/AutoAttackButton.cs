@@ -95,6 +95,11 @@ namespace Pathogen
         }
 
         private static CameraController cachedCamera;
+        private static Material crosshairMaterial;
+
+        private static readonly Color crosshairBlue = new Color(0.3f, 0.5f, 0.9f, 0.5f);
+        private static readonly Color crosshairSnapped = new Color(0.3f, 0.5f, 0.9f, 0.7f);
+        private static readonly Color crosshairOutOfRange = new Color(0.9f, 0.25f, 0.2f, 0.5f);
 
         private void UpdateCrosshairPosition(Vector3 aimDirection, float reach)
         {
@@ -109,10 +114,13 @@ namespace Pathogen
             crosshairIcon.SetActive(true);
 
             Entity snapped = playerController.GetAttackButtonTarget();
-            if (snapped != null && !snapped.IsDead)
+            bool hasTarget = snapped != null && !snapped.IsDead;
+
+            if (hasTarget)
             {
                 crosshairIcon.transform.position = new Vector3(
                     snapped.transform.position.x, 0.05f, snapped.transform.position.z);
+                crosshairMaterial.SetColor("_Color", crosshairSnapped);
             }
             else
             {
@@ -120,6 +128,7 @@ namespace Pathogen
                 Vector3 dir = aimDirection.normalized;
                 Vector3 worldPos = playerController.transform.position + dir * range * reach;
                 crosshairIcon.transform.position = new Vector3(worldPos.x, 0.05f, worldPos.z);
+                crosshairMaterial.SetColor("_Color", crosshairOutOfRange);
             }
         }
 
@@ -132,17 +141,21 @@ namespace Pathogen
         {
             if (crosshairIcon != null) return;
 
-            crosshairIcon = new GameObject("AttackCrosshair");
-            var sr = crosshairIcon.AddComponent<SpriteRenderer>();
+            var shader = Shader.Find("Pathogen/Crosshair");
+            crosshairMaterial = new Material(shader);
+            crosshairMaterial.SetColor("_Color", crosshairBlue);
 
-            var tex = Resources.Load<Texture2D>("Sprites/crosshair");
-            if (tex != null)
-                sr.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
-                    new Vector2(0.5f, 0.5f), 100f);
-            sr.color = new Color(1f, 1f, 1f, 0.85f);
-            sr.sortingOrder = 100;
+            crosshairIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            crosshairIcon.name = "AttackCrosshair";
+            Object.DestroyImmediate(crosshairIcon.GetComponent<MeshCollider>());
+
+            var renderer = crosshairIcon.GetComponent<Renderer>();
+            renderer.material = crosshairMaterial;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+
             crosshairIcon.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            crosshairIcon.transform.localScale = Vector3.one * 0.15f;
+            crosshairIcon.transform.localScale = Vector3.one * 1.5f;
             crosshairIcon.SetActive(false);
         }
 

@@ -457,12 +457,6 @@ namespace Pathogen
                 upgGO.AddComponent<CanvasGroup>();
                 upgGO.AddComponent<Button>();
 
-                var chevronText = CreateUIText(upgGO.transform, "ChevronLabel",
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                    new Vector2(upgSize, upgSize), "^", (int)(upgSize * 0.75f), Color.white);
-                chevronText.fontStyle = FontStyles.Bold;
-                chevronText.alignment = TextAlignmentOptions.Midline;
-
                 skillBtn.upgradeButton = upgGO;
                 skillBtnComponents[i] = skillBtn;
             }
@@ -488,7 +482,7 @@ namespace Pathogen
             {
                 float recallBtnSize = 126f;
                 var recallBtnGO = CreateButton(canvasGO.transform, "RecallButton",
-                    new Vector2(0.5f, 0f), new Vector2(-10f, 100f),
+                    new Vector2(0.5f, 0f), new Vector2(-30f, 100f),
                     recallBtnSize, new Color(0.2f, 0.5f, 0.8f, 0.7f), "B", true, true);
                 hud.recallButton = recallBtnGO.AddComponent<Button>();
                 recallBtnRect = recallBtnGO.GetComponent<RectTransform>();

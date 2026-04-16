@@ -122,10 +122,23 @@ Shader "Pathogen/UIUpgradeButton"
                 waveDist = min(waveDist, 1.0 - waveDist);
                 float waveMask = (1.0 - smoothstep(0.0, _WaveWidth, waveDist)) * borderMask;
 
+                // Chevron arrow (open, no fill, no baseline)
+                float2 uv = i.uv - 0.5;
+                float chevronY = uv.y - 0.08;
+                float leftDist = abs(chevronY - uv.x * 1.1);
+                float rightDist = abs(chevronY + uv.x * 1.1);
+                float leftArm = step(uv.x, 0.0) * (1.0 - smoothstep(0.0, 0.035, leftDist));
+                float rightArm = step(0.0, uv.x) * (1.0 - smoothstep(0.0, 0.035, rightDist));
+                float chevronMask = (leftArm + rightArm)
+                    * step(-0.18, uv.y) * step(uv.y, 0.18)
+                    * step(-0.16, uv.x) * step(uv.x, 0.16);
+
                 fixed4 col = fillColor;
                 col = lerp(col, borderColor, borderMask);
                 col.rgb += waveMask * _WaveBrightness;
                 col.a += waveMask * _WaveBrightness * 0.5;
+                col.rgb = lerp(col.rgb, float3(1, 1, 1), chevronMask * 0.95);
+                col.a = max(col.a, chevronMask * 0.95);
                 col.a *= circleMask;
 
                 col *= i.color;
