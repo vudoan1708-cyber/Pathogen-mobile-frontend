@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e5f2a9c1b4d8e0f3a6b5c8d4e9f1a2b, type: 3}
+  m_Name: ShaderLibrary
+  m_EditorClassIdentifier:
+  urpUnlit: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  bioPulse: {fileID: 4800000, guid: 1045c142bb4d94dd788f22270b1d1782, type: 3}
+  slimeBeam: {fileID: 4800000, guid: 6848c74fb23b648b39f3c7bf6c9ca3e2, type: 3}
+  uiEntityBar: {fileID: 4800000, guid: 76d886d0790d143deae61d5168cd5641, type: 3}
+  uiEntityBarCanvas: {fileID: 4800000, guid: ae45b97e00c2648d38fc9b6ea9672fbd, type: 3}
+  uiHealthGradient: {fileID: 4800000, guid: 289e78b53220b40d48a7717e3d6b357a, type: 3}
+  uiSkillCooldown: {fileID: 4800000, guid: 0418c38136ed441b8a7b9e45fd9b13ae, type: 3}
+  uiUpgradeButton: {fileID: 4800000, guid: 7ea1e71fcf1a24fe4816aba42ec3b7c5, type: 3}
+  uiGoldButton: {fileID: 4800000, guid: 44119808ad0d044e7b36e15f6c7e1ac5, type: 3}
+  crosshair: {fileID: 4800000, guid: 4d3e99ee270cd47219a26633429c4ec5, type: 3}

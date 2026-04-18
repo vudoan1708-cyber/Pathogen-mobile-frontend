@@ -24,6 +24,7 @@ namespace Pathogen
         private const float TrailDelay = 0.12f;
         private const float XpFillSpeed = 3f;
         private const float HpPerTick = 100f;
+        private const float HeightPadding = 1.2f;
 
         void Start()
         {
@@ -69,6 +70,9 @@ namespace Pathogen
 
         void LateUpdate()
         {
+            if (champion != null)
+                transform.localPosition = new Vector3(0f, champion.championHeight + HeightPadding, 0f);
+
             if (Camera.main != null)
                 transform.rotation = Camera.main.transform.rotation;
         }
@@ -163,7 +167,7 @@ namespace Pathogen
             lvlText.fontStyle = FontStyles.Bold;
 
             // ── Health bar (shader-driven) ──
-            var barShader = Shader.Find("Pathogen/UIEntityBarCanvas");
+            var barShader = ShaderLibrary.Instance.uiEntityBarCanvas;
 
             var hpMat = new Material(barShader);
             Color hpColor = champ.team == Team.Virus

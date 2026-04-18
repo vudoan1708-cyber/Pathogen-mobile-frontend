@@ -24,7 +24,7 @@ namespace Pathogen
         // Camera settings — Wild Rift-style angled top-down, orthographic
         private readonly Vector3 baseOffset = new Vector3(-3f, 20f, -7f);
         private readonly Vector3 baseLookOffset = new Vector3(0f, 0f, 3f);
-        private float orthoSize = 7f;
+        private float orthoSize = 6f;
 
         private Camera cam;
         private Vector3 focusPoint;

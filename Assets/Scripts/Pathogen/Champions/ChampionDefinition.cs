@@ -8,6 +8,14 @@ namespace Pathogen
     {
         public string championName;
         public Color color;
+        public float championHeight = 1f;
+
+        // Addressables key for the champion's visual model (FBX or wrapped prefab).
+        // Loaded asynchronously at spawn. Leave empty to keep the primitive placeholder.
+        public string modelAddress;
+        public Vector3 modelLocalPosition;
+        public Vector3 modelLocalEulerAngles;
+        public float modelScale = 1f;
 
         // Base stats
         public float maxHealth = 500f;

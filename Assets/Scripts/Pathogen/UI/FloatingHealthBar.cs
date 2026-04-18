@@ -162,10 +162,7 @@ namespace Pathogen
 
         private void CreateHealthBar()
         {
-            var shader = Shader.Find("Pathogen/UIEntityBar");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            healthMat = new Material(shader);
+            healthMat = new Material(ShaderLibrary.Instance.uiEntityBar);
 
             float pct = entity.maxHealth > 0 ? entity.currentHealth / entity.maxHealth : 1f;
             float tickUV = showTickMarks && entity.maxHealth > 0 ? HpPerTick / entity.maxHealth : 0f;
@@ -186,10 +183,7 @@ namespace Pathogen
 
         private void CreateManaBar()
         {
-            var shader = Shader.Find("Pathogen/UIEntityBar");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            manaMat = new Material(shader);
+            manaMat = new Material(ShaderLibrary.Instance.uiEntityBar);
 
             var champion = entity as Champion;
             float manaPct = champion != null && champion.maxMana > 0

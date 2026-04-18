@@ -180,7 +180,7 @@ namespace Pathogen
             barBGRT.anchorMax = new Vector2(1f, BarAnchorMax);
             barBGRT.offsetMin = Vector2.zero;
             barBGRT.offsetMax = Vector2.zero;
-            var healthShader = Shader.Find("Pathogen/UIHealthGradient");
+            var healthShader = ShaderLibrary.Instance.uiHealthGradient;
 
             var bgMat = new Material(healthShader);
             bgMat.SetFloat("_Roundness", 0.08f);

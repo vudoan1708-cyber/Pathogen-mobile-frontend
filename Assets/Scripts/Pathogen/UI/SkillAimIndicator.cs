@@ -54,14 +54,8 @@ namespace Pathogen
         public Color lineColor = new Color(0.3f, 0.5f, 0.8f, 0.7f);
         private static readonly Color outOfRangeColor = new Color(1f, 0.3f, 0.3f, 0.3f);
 
-        private static Shader bioPulseShader;
-
         void Awake()
         {
-            bioPulseShader = Shader.Find("Pathogen/BioPulse");
-            if (bioPulseShader == null)
-                bioPulseShader = Shader.Find("Universal Render Pipeline/Unlit");
-
             CreateAimLine();
             CreateRectangleIndicator();
             CreateConeIndicator();
@@ -75,7 +69,7 @@ namespace Pathogen
         private static Material CreateBioPulseMaterial(Color color,
             float fillAlpha = 0.06f, float edgeAlpha = 0.7f)
         {
-            var mat = new Material(bioPulseShader);
+            var mat = new Material(ShaderLibrary.Instance.bioPulse);
             mat.SetColor("_Color", color);
             mat.SetFloat("_FillAlpha", fillAlpha);
             mat.SetFloat("_EdgeAlpha", edgeAlpha);
@@ -98,7 +92,7 @@ namespace Pathogen
             aimLine.positionCount = 2;
             aimLine.startWidth = 0.15f;
             aimLine.endWidth = 0.08f;
-            aimLine.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            aimLine.material = new Material(ShaderLibrary.Instance.urpUnlit);
             aimLine.material.color = lineColor;
             aimLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             aimLine.receiveShadows = false;

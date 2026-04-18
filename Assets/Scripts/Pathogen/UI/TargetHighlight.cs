@@ -41,7 +41,7 @@ namespace Pathogen
             filter.sharedMesh = ringMesh;
 
             var renderer = highlightRing.AddComponent<MeshRenderer>();
-            renderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            renderer.material = new Material(ShaderLibrary.Instance.urpUnlit);
             renderer.material.color = new Color(1f, 0.75f, 0.3f, 0.55f);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;

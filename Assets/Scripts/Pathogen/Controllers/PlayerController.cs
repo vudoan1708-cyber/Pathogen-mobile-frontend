@@ -222,7 +222,7 @@ namespace Pathogen
             attackCircle.transform.localScale = new Vector3(1.8f, 0.02f, 1.8f);
             DestroyImmediate(attackCircle.GetComponent<CapsuleCollider>());
             var r = attackCircle.GetComponent<Renderer>();
-            r.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            r.material = new Material(ShaderLibrary.Instance.urpUnlit);
             r.material.color = new Color(0.85f, 0.75f, 0.25f, 0.7f);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             attackCircle.SetActive(false);
@@ -273,10 +273,7 @@ namespace Pathogen
             var filter = rangeIndicator.AddComponent<MeshFilter>();
             filter.sharedMesh = SkillAimIndicator.SharedRingMesh;
 
-            var shader = Shader.Find("Pathogen/BioPulse");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            var mat = new Material(shader);
+            var mat = new Material(ShaderLibrary.Instance.bioPulse);
             mat.SetColor("_Color", new Color(0.75f, 0.85f, 1f));
             mat.SetFloat("_FillAlpha", 0f);
             mat.SetFloat("_EdgeAlpha", 0.45f);

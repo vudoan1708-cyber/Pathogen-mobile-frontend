@@ -141,8 +141,7 @@ namespace Pathogen
         {
             if (crosshairIcon != null) return;
 
-            var shader = Shader.Find("Pathogen/Crosshair");
-            crosshairMaterial = new Material(shader);
+            crosshairMaterial = new Material(ShaderLibrary.Instance.crosshair);
             crosshairMaterial.SetColor("_Color", crosshairBlue);
 
             crosshairIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);

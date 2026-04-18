@@ -38,6 +38,21 @@ namespace Pathogen
 
         private static Mesh structureRangeMesh;
 
+        // Aim indicator — shader-driven slime beam from spawn point to current target
+        private LineRenderer aimLine;
+        private Material aimLineMaterial;
+        private const float AimLineSpawnHeight = 2f;
+        private const float AimLineTargetHeight = 0.5f;
+        private const float AimLineWidth = 0.22f;
+
+        // Team-specific slime look (identical gameplay, different feel)
+        private static readonly Color VirusSlimeCore  = new Color(0.42f, 0.88f, 0.18f, 1f);
+        private static readonly Color VirusSlimeEdge  = new Color(0.10f, 0.28f, 0.02f, 1f);
+        private static readonly Color ImmuneSlimeCore = new Color(0.75f, 0.92f, 1.00f, 1f);
+        private static readonly Color ImmuneSlimeEdge = new Color(0.22f, 0.48f, 0.80f, 1f);
+        private const float VirusSlimeAmount  = 0.92f;
+        private const float ImmuneSlimeAmount = 0.28f;
+
         protected override void Awake()
         {
             base.Awake();
@@ -48,6 +63,7 @@ namespace Pathogen
         {
             base.Start();
             CreateRangeRing();
+            CreateAimLine();
         }
 
         protected override void Update()
@@ -93,6 +109,7 @@ namespace Pathogen
             }
 
             UpdateRangeRing();
+            UpdateAimLine();
         }
 
         private void ResetConsecutiveHitsIfChampionLeftRange()
@@ -235,10 +252,7 @@ namespace Pathogen
             var filter = rangeRing.AddComponent<MeshFilter>();
             filter.sharedMesh = structureRangeMesh;
 
-            var shader = Shader.Find("Pathogen/BioPulse");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            rangeRingMaterial = new Material(shader);
+            rangeRingMaterial = new Material(ShaderLibrary.Instance.bioPulse);
             rangeRingMaterial.SetColor("_Color", rangeRingSafe);
             rangeRingMaterial.SetFloat("_FillAlpha", 0.03f);
             rangeRingMaterial.SetFloat("_EdgeAlpha", 0.4f);
@@ -356,21 +370,83 @@ namespace Pathogen
             return mesh;
         }
 
+        // ─── AIM INDICATOR LINE ────────────────────────────────────────
+
+        private void CreateAimLine()
+        {
+            var go = new GameObject("StructureAimLine");
+            go.transform.SetParent(transform, false);
+
+            aimLine = go.AddComponent<LineRenderer>();
+            aimLine.positionCount = 2;
+            aimLine.useWorldSpace = true;
+            aimLine.startWidth = AimLineWidth;
+            aimLine.endWidth = AimLineWidth * 0.55f;
+            aimLine.numCapVertices = 4;
+            aimLine.numCornerVertices = 2;
+            aimLine.textureMode = LineTextureMode.Stretch;
+            aimLine.alignment = LineAlignment.View;
+            aimLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            aimLine.receiveShadows = false;
+
+            aimLineMaterial = CreateSlimeBeamMaterial(isProjectileTrail: false);
+            aimLine.material = aimLineMaterial;
+            aimLine.enabled = false;
+        }
+
+        private void UpdateAimLine()
+        {
+            if (aimLine == null) return;
+
+            bool hasTarget = attackTarget != null && !attackTarget.IsDead;
+            bool inRange = hasTarget && Vector3.Distance(
+                transform.position, attackTarget.transform.position) <= structureRange;
+
+            if (!inRange)
+            {
+                if (aimLine.enabled) aimLine.enabled = false;
+                return;
+            }
+
+            Vector3 origin = transform.position + Vector3.up * AimLineSpawnHeight;
+            Vector3 tip = attackTarget.transform.position + Vector3.up * AimLineTargetHeight;
+            aimLine.SetPosition(0, origin);
+            aimLine.SetPosition(1, tip);
+            if (!aimLine.enabled) aimLine.enabled = true;
+        }
+
+        private Material CreateSlimeBeamMaterial(bool isProjectileTrail)
+        {
+            var mat = new Material(ShaderLibrary.Instance.slimeBeam);
+            bool isVirus = team == Team.Virus;
+            Color core = isVirus ? VirusSlimeCore : ImmuneSlimeCore;
+            Color edge = isVirus ? VirusSlimeEdge : ImmuneSlimeEdge;
+            float slime = isVirus ? VirusSlimeAmount : ImmuneSlimeAmount;
+
+            mat.SetColor("_Color", core);
+            mat.SetColor("_EdgeColor", edge);
+            mat.SetFloat("_Slime", slime);
+            mat.SetFloat("_FlowSpeed", isProjectileTrail ? 2.6f : 1.4f);
+            mat.SetFloat("_PulseSpeed", 2.2f);
+            mat.SetFloat("_Thickness", isProjectileTrail ? 0.78f : 0.68f);
+            mat.SetFloat("_Alpha", isProjectileTrail ? 0.95f : 0.82f);
+            return mat;
+        }
+
         // ─── PROJECTILE ────────────────────────────────────────────────
 
         private void SpawnPoisonProjectile(Entity target, float damage, bool isTrueDmg)
         {
             Vector3 spawnPos = transform.position + Vector3.up * 2f;
+            bool isVirus = team == Team.Virus;
 
-            Color poisonColor = isTrueDmg
+            // True damage overrides team tint (white special state)
+            Color headColor = isTrueDmg
                 ? Color.white
-                : new Color(0.3f, 0.85f, 0.1f, 0.9f);
-            Color trailColor = isTrueDmg
-                ? new Color(1f, 1f, 1f, 0.6f)
-                : new Color(0.2f, 0.7f, 0.05f, 0.5f);
+                : (isVirus ? VirusSlimeCore : ImmuneSlimeCore);
 
             var projGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            projGO.name = "PoisonSpit";
+            projGO.name = "StructureProjectile";
             projGO.transform.position = spawnPos;
             projGO.transform.localScale = Vector3.one * (isTrueDmg ? 0.8f : 0.6f);
 
@@ -378,17 +454,25 @@ namespace Pathogen
             DestroyImmediate(projGO.GetComponent<SphereCollider>());
 
             var renderer = projGO.GetComponent<Renderer>();
-            renderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            renderer.material.color = poisonColor;
+            renderer.material = new Material(ShaderLibrary.Instance.urpUnlit);
+            renderer.material.color = headColor;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var trail = projGO.AddComponent<TrailRenderer>();
-            trail.startWidth = isTrueDmg ? 0.6f : 0.45f;
+            trail.startWidth = isTrueDmg ? 0.55f : 0.4f;
             trail.endWidth = 0.02f;
-            trail.time = 0.4f;
-            trail.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            trail.startColor = trailColor;
-            trail.endColor = new Color(trailColor.r * 0.5f, trailColor.g * 0.3f, 0f, 0f);
+            trail.time = 0.45f;
+            trail.textureMode = LineTextureMode.Stretch;
+            trail.alignment = LineAlignment.View;
+            trail.startColor = Color.white;
+            trail.endColor = new Color(1f, 1f, 1f, 0f);
+            trail.material = CreateSlimeBeamMaterial(isProjectileTrail: true);
+            if (isTrueDmg)
+            {
+                // White-hot override — still organic, but desaturated to sell the escalation
+                trail.material.SetColor("_Color", Color.white);
+                trail.material.SetColor("_EdgeColor", new Color(0.7f, 0.7f, 0.7f, 1f));
+            }
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var proj = projGO.AddComponent<StructureProjectile>();

@@ -70,7 +70,7 @@ namespace Pathogen
 
         private void CreateCooldownOverlay()
         {
-            var cdShader = Shader.Find("Pathogen/UISkillCooldown");
+            var cdShader = ShaderLibrary.Instance.uiSkillCooldown;
             if (cdShader == null) return;
 
             cooldownMaterial = new Material(cdShader);

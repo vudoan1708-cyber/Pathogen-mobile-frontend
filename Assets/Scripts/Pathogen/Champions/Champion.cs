@@ -76,6 +76,7 @@ namespace Pathogen
         public event Action<float> OnRecallProgress;      // Fires with normalized progress 0..1
         public event Action OnRecallCompleted;
         public event Action OnRecallCancelled;
+        public event Action<int> OnSkillUsed;             // Fires with skill index 0..3 after cast succeeds
 
         public void InvokeManaChanged() => OnManaChanged?.Invoke(currentMana, maxMana);
 
@@ -172,6 +173,7 @@ namespace Pathogen
                 Heal(maxHealth * 0.03f);
 
             ExecuteSkill(skill, direction, targetPosition);
+            OnSkillUsed?.Invoke(index);
             return true;
         }
 
@@ -314,11 +316,7 @@ namespace Pathogen
             var filter = visual.AddComponent<MeshFilter>();
             filter.sharedMesh = SkillAimIndicator.SharedDiscMesh;
 
-            var bioPulseShader = Shader.Find("Pathogen/BioPulse");
-            if (bioPulseShader == null)
-                bioPulseShader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            var mat = new Material(bioPulseShader);
+            var mat = new Material(ShaderLibrary.Instance.bioPulse);
             mat.SetColor("_Color", vis.primaryColor);
             mat.SetFloat("_FillAlpha", 0.12f);
             mat.SetFloat("_EdgeAlpha", 0.85f);

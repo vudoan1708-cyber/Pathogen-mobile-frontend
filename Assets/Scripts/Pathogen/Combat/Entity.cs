@@ -41,6 +41,7 @@ namespace Pathogen
         // Events
         public event Action<Entity> OnDeath;
         public event Action<float, float> OnHealthChanged;
+        public event Action OnAutoAttackPerformed;
 
         // Protected helpers so subclasses can invoke events
         protected void InvokeHealthChanged() => OnHealthChanged?.Invoke(currentHealth, maxHealth);
@@ -313,6 +314,7 @@ namespace Pathogen
 
             attackCooldown = 1f / attackSpeed;
             target.TakeDamage(attackDamage, false, this);
+            OnAutoAttackPerformed?.Invoke();
         }
     }
 
@@ -341,7 +343,7 @@ namespace Pathogen
                 UnityEngine.Object.Destroy(particle.GetComponent<BoxCollider>());
 
                 var renderer = particle.GetComponent<Renderer>();
-                renderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                renderer.material = new Material(ShaderLibrary.Instance.urpUnlit);
                 renderer.material.color = color;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 

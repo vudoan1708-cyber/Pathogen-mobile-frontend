@@ -429,7 +429,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Pathogen.GameBootstrap
   laneLength: 80
   groundWidth: 30
-  startingCameraMode: 0
 --- !u!4 &913512988
 Transform:
   m_ObjectHideFlags: 0

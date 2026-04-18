@@ -8,7 +8,7 @@ namespace Pathogen
         {
             return new ChampionDefinition[]
             {
-                Pathobyte(),
+                Necrova(),
                 Immunix()
             };
         }
@@ -26,12 +26,15 @@ namespace Pathogen
 
         // ─── VIRUS CHAMPIONS ────────────────────────────────────────────
 
-        public static ChampionDefinition Pathobyte()
+        public static ChampionDefinition Necrova()
         {
             return new ChampionDefinition
             {
-                championName = "Pathobyte",
+                championName = "Necrova",
                 color = new Color(0.9f, 0.2f, 0.3f),
+                modelAddress = "Necrova",
+                modelScale = 2f,
+                championHeight = 4f,
                 maxHealth = 500f,
                 maxMana = 250f,
                 attackDamage = 50f,

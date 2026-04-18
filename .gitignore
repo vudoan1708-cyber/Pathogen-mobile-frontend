@@ -51,12 +51,23 @@ crashlytics-build.properties
 *.apk
 *.aab
 *.app
+.utmp/
 *.unitypackage
 ~UnityDirMonSyncFile~*
-**/Assets/AddressableAssetsData/*/*.bin*
-**/assets/addressableassetsdata/*/*.bin*
 **/Assets/StreamingAssets/aa.meta
 **/assets/streamingassets/*/aa/*
+
+# Unity build leftovers
+*_BurstDebugInformation_DoNotShip/
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+*lib_burst_generated.txt
+
+# Unity scene auto-recovery
+/Assets/_Recovery/
+/Assets/_Recovery.meta
+
+# Addressables local build state
+/ProjectSettings/ScriptableBuildPipeline.json
 .DS_Store*
 Thumbs.db
 Desktop.ini

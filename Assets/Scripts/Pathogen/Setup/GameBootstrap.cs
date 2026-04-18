@@ -65,13 +65,35 @@ namespace Pathogen
 
         private void SetupLighting()
         {
-            // Directional light
-            var lightGO = new GameObject("DirectionalLight");
-            var light = lightGO.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.color = new Color(1f, 0.95f, 0.85f);
-            light.intensity = 1.2f;
-            lightGO.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            // Key light — warm, from front-right, main illumination
+            var keyGO = new GameObject("KeyLight");
+            var keyLight = keyGO.AddComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.color = new Color(1f, 0.95f, 0.85f);
+            keyLight.intensity = 1.2f;
+            keyGO.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+            // Rim light — cool, from behind, creates silhouette separation
+            var rimGO = new GameObject("RimLight");
+            var rimLight = rimGO.AddComponent<Light>();
+            rimLight.type = LightType.Directional;
+            rimLight.color = new Color(0.5f, 0.7f, 1f);
+            rimLight.intensity = 0.9f;
+            rimGO.transform.rotation = Quaternion.Euler(25f, 150f, 0f);
+            rimLight.shadows = LightShadows.None;
+
+            // Fill light — soft, from opposite key, lifts shadows
+            var fillGO = new GameObject("FillLight");
+            var fillLight = fillGO.AddComponent<Light>();
+            fillLight.type = LightType.Directional;
+            fillLight.color = new Color(0.8f, 0.85f, 1f);
+            fillLight.intensity = 0.35f;
+            fillGO.transform.rotation = Quaternion.Euler(35f, 60f, 0f);
+            fillLight.shadows = LightShadows.None;
+
+            // Lift the ambient floor so shaded sides aren't black
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.25f, 0.26f, 0.3f);
         }
 
         // ─── GROUND ─────────────────────────────────────────────────────
@@ -118,10 +140,10 @@ namespace Pathogen
         {
             float half = laneLength * 0.5f;
 
-            // Virus structures (Infection Nodes)
-            CreateStructure("InfectionNode_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
+            // Virus structures (Dark Sentinels)
+            CreateStructure("DarkSentinel_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
                            1500f, 80f, new Color(0.8f, 0.15f, 0.15f));
-            CreateStructure("InfectionNode_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
+            CreateStructure("DarkSentinel_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
                            2000f, 100f, new Color(0.6f, 0.1f, 0.1f));
 
             // Immune structures (Sentinels)
@@ -137,7 +159,7 @@ namespace Pathogen
             var structGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             structGO.name = name;
             structGO.transform.position = position;
-            structGO.transform.localScale = new Vector3(1.2f, 3f, 1.2f);
+            structGO.transform.localScale = new Vector3(1.2f, 4f, 1.2f);
             structGO.GetComponent<Renderer>().material.color = color;
 
             // Trigger collider so minions can walk through (structures detect via range, not physics)
@@ -177,9 +199,9 @@ namespace Pathogen
             float half = laneLength * 0.5f;
 
             // --- PLAYER ---
-            var playerDef = ChampionRoster.Get("Immunix");
-            var playerPos = new Vector3(half * 0.85f, 0.5f, 0f);
-            playerChampion = CreateChampion(playerDef, Team.Immune, playerPos);
+            var playerDef = ChampionRoster.Get("Necrova");
+            var playerPos = new Vector3(-half * 0.85f, 0.5f, 0f);
+            playerChampion = CreateChampion(playerDef, Team.Virus, playerPos);
 
             PlayerController.Create(playerChampion.gameObject);
 
@@ -189,16 +211,16 @@ namespace Pathogen
             cc.center = Vector3.zero;
 
             // --- AI ---
-            var aiDef = ChampionRoster.Get("Pathobyte");
-            var aiPos = new Vector3(-half * 0.85f, 0.5f, 0f);
-            aiChampion = CreateChampion(aiDef, Team.Virus, aiPos);
+            var aiDef = ChampionRoster.Get("Immunix");
+            var aiPos = new Vector3(half * 0.85f, 0.5f, 0f);
+            aiChampion = CreateChampion(aiDef, Team.Immune, aiPos);
 
             var aiCtrl = aiChampion.gameObject.AddComponent<AIController>();
             aiCtrl.patrolPoints = new Vector3[]
             {
-                new Vector3(-half * 0.85f, 0.5f, 0f),
-                new Vector3(-half * 0.5f, 0.5f, 0f),
-                new Vector3(-half * 0.2f, 0.5f, 0f),
+                new Vector3(half * 0.85f, 0.5f, 0f),
+                new Vector3(half * 0.5f, 0.5f, 0f),
+                new Vector3(half * 0.2f, 0.5f, 0f),
                 new Vector3(0f, 0.5f, 0f),
             };
         }
@@ -209,7 +231,8 @@ namespace Pathogen
             champGO.name = def.championName;
             champGO.transform.position = position;
             champGO.transform.localScale = Vector3.one;
-            champGO.GetComponent<Renderer>().material.color = def.color;
+            var placeholderRenderer = champGO.GetComponent<Renderer>();
+            placeholderRenderer.material.color = def.color;
 
             var rb = champGO.AddComponent<Rigidbody>();
             rb.isKinematic = true;
@@ -232,6 +255,7 @@ namespace Pathogen
             champ.healthRegen = def.healthRegen;
             champ.manaRegen = def.manaRegen;
             champ.sightRange = def.sightRange;
+            champ.championHeight = def.championHeight;
             champ.healthPerLevel = def.healthPerLevel;
             champ.manaPerLevel = def.manaPerLevel;
             champ.attackDamagePerLevel = def.attackDamagePerLevel;
@@ -241,6 +265,14 @@ namespace Pathogen
             champ.InitializeSkills(def.skills);
 
             champGO.AddComponent<TargetHighlight>();
+
+            ChampionModelLoader.Begin(
+                champGO,
+                def.modelAddress,
+                placeholderRenderer,
+                def.modelLocalPosition,
+                def.modelLocalEulerAngles,
+                def.modelScale);
 
             return champ;
         }
@@ -401,7 +433,7 @@ namespace Pathogen
 
             float skillSize = IsMobile ? 126f : 84f;
             float upgSize = IsMobile ? 80f : 60f;
-            var woodenMat = new Material(Shader.Find("Pathogen/UIGoldButton"));
+            var woodenMat = new Material(ShaderLibrary.Instance.uiGoldButton);
 
             for (int i = 0; i < 4; i++)
             {
@@ -459,7 +491,7 @@ namespace Pathogen
                 float upgOffset = skillSize * 0.78f + 20f;
                 upgRT.anchoredPosition = new Vector2(-0.766f, 0.643f) * upgOffset;
 
-                var upgBtnMat = new Material(Shader.Find("Pathogen/UIUpgradeButton"));
+                var upgBtnMat = new Material(ShaderLibrary.Instance.uiUpgradeButton);
                 var upgImg = upgGO.AddComponent<Image>();
                 upgImg.material = upgBtnMat;
                 upgImg.color = Color.white;

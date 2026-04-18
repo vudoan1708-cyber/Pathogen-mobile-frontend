@@ -78,7 +78,7 @@ namespace Pathogen
             trail.startWidth = visuals.trailWidth;
             trail.endWidth = 0f;
             trail.time = 0.2f;
-            trail.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            trail.material = new Material(ShaderLibrary.Instance.urpUnlit);
             trail.startColor = visuals.trailColor;
             trail.endColor = new Color(visuals.trailColor.r, visuals.trailColor.g, visuals.trailColor.b, 0f);
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
