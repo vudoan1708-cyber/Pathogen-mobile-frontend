@@ -167,7 +167,9 @@ namespace Pathogen
             float pct = entity.maxHealth > 0 ? entity.currentHealth / entity.maxHealth : 1f;
             float tickUV = showTickMarks && entity.maxHealth > 0 ? HpPerTick / entity.maxHealth : 0f;
 
-            Color fillColor = entity.team == Team.Virus
+            Team playerTeam = GameManager.Instance != null ? GameManager.Instance.playerTeam : Team.Virus;
+            bool isEnemy = entity.team != playerTeam;
+            Color fillColor = isEnemy
                 ? new Color(0.85f, 0.18f, 0.18f)
                 : new Color(0.2f, 0.72f, 0.3f);
 

@@ -17,7 +17,7 @@ namespace Pathogen
         public float trueDamageMultiplier = 1.5f;
 
         [Header("Projectile")]
-        public float projectileSpeed = 12f;
+        public float projectileSpeed = 7f;
 
         private Entity attackTarget;
         private Entity lastTarget;
@@ -41,9 +41,10 @@ namespace Pathogen
         // Aim indicator — shader-driven slime beam from spawn point to current target
         private LineRenderer aimLine;
         private Material aimLineMaterial;
-        private const float AimLineSpawnHeight = 2f;
         private const float AimLineTargetHeight = 0.5f;
         private const float AimLineWidth = 0.22f;
+
+        private float ProjectileSpawnHeight => transform.localScale.y * 0.5f;
 
         // Team-specific slime look (identical gameplay, different feel)
         private static readonly Color VirusSlimeCore  = new Color(0.42f, 0.88f, 0.18f, 1f);
@@ -408,7 +409,7 @@ namespace Pathogen
                 return;
             }
 
-            Vector3 origin = transform.position + Vector3.up * AimLineSpawnHeight;
+            Vector3 origin = transform.position + Vector3.up * ProjectileSpawnHeight;
             Vector3 tip = attackTarget.transform.position + Vector3.up * AimLineTargetHeight;
             aimLine.SetPosition(0, origin);
             aimLine.SetPosition(1, tip);
@@ -437,26 +438,25 @@ namespace Pathogen
 
         private void SpawnPoisonProjectile(Entity target, float damage, bool isTrueDmg)
         {
-            Vector3 spawnPos = transform.position + Vector3.up * 2f;
+            Vector3 spawnPos = transform.position + Vector3.up * ProjectileSpawnHeight;
             bool isVirus = team == Team.Virus;
 
-            // True damage overrides team tint (white special state)
-            Color headColor = isTrueDmg
-                ? Color.white
-                : (isVirus ? VirusSlimeCore : ImmuneSlimeCore);
+            Color teamColor = isVirus ? VirusSlimeCore : ImmuneSlimeCore;
+            Color headColor = isTrueDmg ? Color.white : Color.Lerp(teamColor, Color.white, 0.55f);
 
             var projGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             projGO.name = "StructureProjectile";
             projGO.transform.position = spawnPos;
-            projGO.transform.localScale = Vector3.one * (isTrueDmg ? 0.8f : 0.6f);
+            projGO.transform.localScale = Vector3.one * (isTrueDmg ? 0.55f : 0.42f);
 
-            // No collider needed — homing projectile hits via distance check
             DestroyImmediate(projGO.GetComponent<SphereCollider>());
 
             var renderer = projGO.GetComponent<Renderer>();
             renderer.material = new Material(ShaderLibrary.Instance.urpUnlit);
             renderer.material.color = headColor;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            GameObject muzzleFlash = AttachMuzzleFlash(projGO.transform, isTrueDmg);
 
             var trail = projGO.AddComponent<TrailRenderer>();
             trail.startWidth = isTrueDmg ? 0.55f : 0.4f;
@@ -469,14 +469,34 @@ namespace Pathogen
             trail.material = CreateSlimeBeamMaterial(isProjectileTrail: true);
             if (isTrueDmg)
             {
-                // White-hot override — still organic, but desaturated to sell the escalation
                 trail.material.SetColor("_Color", Color.white);
                 trail.material.SetColor("_EdgeColor", new Color(0.7f, 0.7f, 0.7f, 1f));
             }
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var proj = projGO.AddComponent<StructureProjectile>();
-            proj.Initialize(this, target, damage, projectileSpeed, isTrueDmg);
+            proj.Initialize(this, target, damage, projectileSpeed, isTrueDmg, muzzleFlash);
+        }
+
+        private static GameObject AttachMuzzleFlash(Transform projectile, bool isTrueDmg)
+        {
+            var prefab = VFXLibrary.Instance != null ? VFXLibrary.Instance.structureMuzzleFlash : null;
+            if (prefab == null) return null;
+
+            var flash = Object.Instantiate(prefab, projectile);
+            flash.transform.localPosition = Vector3.zero;
+            flash.transform.localRotation = Quaternion.identity;
+
+            if (isTrueDmg)
+            {
+                var ps = flash.GetComponent<ParticleSystem>();
+                if (ps != null)
+                {
+                    var main = ps.main;
+                    main.startSize = new ParticleSystem.MinMaxCurve(0.7f, 1.1f);
+                }
+            }
+            return flash;
         }
 
         // ─── DEATH ─────────────────────────────────────────────────────

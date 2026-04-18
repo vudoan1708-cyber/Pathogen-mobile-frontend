@@ -46,6 +46,7 @@ namespace Pathogen
         [Header("Game State")]
         public bool GameActive { get; private set; } = true;
         public Team? WinningTeam { get; private set; }
+        public Team playerTeam = Team.Virus;
 
         [Header("Health Shift - Champion Kills")]
         public float baseChampionKillShift = 1f;

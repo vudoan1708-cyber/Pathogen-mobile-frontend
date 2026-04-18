@@ -218,7 +218,7 @@ namespace Pathogen
             projGO.GetComponent<Renderer>().material.color = vis.primaryColor;
 
             var proj = projGO.AddComponent<Projectile>();
-            proj.Initialize(this, direction, attackDamage, 12f, attackRange,
+            proj.Initialize(this, direction, attackDamage, 6f, attackRange,
                 false, ProjectilePiercing.StopOnFirst, vis);
 
             DestroyImmediate(projGO.GetComponent<SphereCollider>());

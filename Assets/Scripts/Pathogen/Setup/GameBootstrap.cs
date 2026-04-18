@@ -159,7 +159,7 @@ namespace Pathogen
             var structGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
             structGO.name = name;
             structGO.transform.position = position;
-            structGO.transform.localScale = new Vector3(1.2f, 4f, 1.2f);
+            structGO.transform.localScale = new Vector3(1.2f, 7f, 1.2f);
             structGO.GetComponent<Renderer>().material.color = color;
 
             // Trigger collider so minions can walk through (structures detect via range, not physics)
@@ -186,7 +186,7 @@ namespace Pathogen
             structure.magicResist = 30f;
 
             var hbar = structGO.AddComponent<FloatingHealthBar>();
-            hbar.heightOffset = 2.5f;
+            hbar.heightOffset = 5.5f;
             hbar.barWidth = 1.5f;
 
             structGO.AddComponent<TargetHighlight>();
@@ -202,6 +202,8 @@ namespace Pathogen
             var playerDef = ChampionRoster.Get("Necrova");
             var playerPos = new Vector3(-half * 0.85f, 0.5f, 0f);
             playerChampion = CreateChampion(playerDef, Team.Virus, playerPos);
+            if (GameManager.Instance != null)
+                GameManager.Instance.playerTeam = playerChampion.team;
 
             PlayerController.Create(playerChampion.gameObject);
 

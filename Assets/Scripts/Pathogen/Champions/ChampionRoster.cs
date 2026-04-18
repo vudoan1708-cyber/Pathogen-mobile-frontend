@@ -34,7 +34,7 @@ namespace Pathogen
                 color = new Color(0.9f, 0.2f, 0.3f),
                 modelAddress = "Necrova",
                 modelScale = 2f,
-                championHeight = 4f,
+                championHeight = 2.25f,
                 maxHealth = 500f,
                 maxMana = 250f,
                 attackDamage = 50f,

@@ -7,12 +7,15 @@ namespace Pathogen
     /// Attached at runtime by ChampionModelLoader once the visual model is loaded.
     ///
     /// Expected Animator Controller parameters:
-    ///   Bool    IsMoving
+    ///   Float   Speed, LocomotionMultiplier
+    ///   Bool    IsRunning
     ///   Trigger Attack, Skill1, Skill2, Skill3, Skill4, Recall, Die, Respawn
     /// </summary>
     public class ChampionAnimator : MonoBehaviour
     {
-        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
+        private static readonly int SpeedHash = Animator.StringToHash("Speed");
+        private static readonly int LocomotionMultiplierHash = Animator.StringToHash("LocomotionMultiplier");
+        private static readonly int IsRunningHash = Animator.StringToHash("IsRunning");
         private static readonly int AttackHash = Animator.StringToHash("Attack");
         private static readonly int RecallHash = Animator.StringToHash("Recall");
         private static readonly int DieHash = Animator.StringToHash("Die");
@@ -25,8 +28,15 @@ namespace Pathogen
             Animator.StringToHash("Skill4")
         };
 
-        // Below this units/sec threshold the champion is considered standing still.
-        private const float MovementSpeedThreshold = 0.1f;
+        // Natural speed of each locomotion clip at playback 1x. Must match
+        // the Blend Tree thresholds set on the Animator Controller.
+        private const float WalkNaturalSpeed = 2f;
+        private const float RunNaturalSpeed = 5.5f;
+
+        // Smooths accel/decel so sudden velocity spikes blend through the tree.
+        private const float SpeedDampTime = 0.12f;
+
+        private const float IdleSpeedThreshold = 0.1f;
 
         private Animator animator;
         private Champion champion;
@@ -68,9 +78,19 @@ namespace Pathogen
 
             Vector3 position = champion.transform.position;
             float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
-            float speed = (position - previousPosition).magnitude / deltaTime;
-            animator.SetBool(IsMovingHash, speed > MovementSpeedThreshold);
+            float rawSpeed = (position - previousPosition).magnitude / deltaTime;
             previousPosition = position;
+
+            animator.SetFloat(SpeedHash, rawSpeed, SpeedDampTime, deltaTime);
+            animator.SetFloat(LocomotionMultiplierHash, ComputeLocomotionMultiplier(rawSpeed));
+            animator.SetBool(IsRunningHash, champion.isRunning);
+        }
+
+        private float ComputeLocomotionMultiplier(float speed)
+        {
+            if (speed < IdleSpeedThreshold) return 1f;
+            float natural = champion.isRunning ? RunNaturalSpeed : WalkNaturalSpeed;
+            return speed / natural;
         }
 
         private void HandleSkillUsed(int index)

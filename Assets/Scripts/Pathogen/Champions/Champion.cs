@@ -45,6 +45,7 @@ namespace Pathogen
         [Header("State")]
         public bool isDashing;
         public bool isBuffed;
+        public bool isRunning;
         public float buffTimer;
         public float buffedAttackDamage;
         public float buffedMoveSpeed;
