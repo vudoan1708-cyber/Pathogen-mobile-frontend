@@ -22,3 +22,12 @@
     - [Structure.cs](Assets/Scripts/Pathogen/Entities/Structure.cs) `AttachMuzzleFlash` instantiates the prefab as a child of the projectile; `isTrueDmg` just overrides `main.startSize` for the escalation read. The old `CreateProjectileHalo` and its pulse loop in [StructureProjectile.cs](Assets/Scripts/Pathogen/Combat/StructureProjectile.cs) are deleted — the ParticleSystem handles its own simulation.
     - **Artist workflow from now on:** menu → "Pathogen/Build VFX Prefabs" once to scaffold, then edit `Assets/Resources/VFX/StructureMuzzleFlash.prefab` in the Inspector like any other ParticleSystem. Shader preservation is automatic via the prefab→material→shader reference chain.
   12. Removed `Assets/TutorialInfo/` — Unity starter-project Readme sample. Its `ReadmeEditor` used `[InitializeOnLoad]` + `EditorApplication.delayCall` to auto-select the Readme asset, which ran `EditorStyles.*` outside an OnGUI context and spammed "Unable to use a named GUIStyle without a current skin" warnings whenever the hierarchy changed. No Pathogen code referenced it.
+[18/04/2026]:
+  1. Proposed 3D map work with AI:
+    - Generate a full map in 3D with Meshy for visualisation and prototyping.
+    - Upscale the concept art created by ChatGPT (original dimensions: 1330 × 1182):
+      - GigaPixelAI: https://gigapixelai.com/ (Purchase required)
+      - Upscayl: https://upscayl.org/ (✅ Free)
+    - x4 the concept art image so that it fills in just enough from the 1330 x 1182 low resolution image. x8 that will make AI reinvent things and also on a mobile game, too much detail is not necessary.
+    - Slice the image up and upscale each chunks individually for sharper details.
+    - Tile them up.
