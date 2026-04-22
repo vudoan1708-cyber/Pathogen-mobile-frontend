@@ -1,3 +1,19 @@
+
+[21/04/2026]:
+  1. Arena prefab (Meshy `Fractal_Labyrinth` FBX + `VirusBaseAnchor` / `ImmuneBaseAnchor` children + concave MeshCollider) now drives the playable map, replacing the procedural cube ground. Saved as a Prefab Variant at [Assets/Map/Arena.prefab](Assets/Map/Arena.prefab), registered Addressable at address `Arena/Default` in the `GameAssets` group — 8192² albedo stays out of the boot bundle and only streams in when a match starts.
+  2. [Assets/Scripts/Pathogen/Setup/GameBootstrap.cs](Assets/Scripts/Pathogen/Setup/GameBootstrap.cs) now boots via `BuildSceneAsync` coroutine: loads the arena via the parameterless `Addressables.InstantiateAsync` overload (preserves the prefab's authored `-90 X` rotation — passing `Quaternion.identity` stomps it and the FBX lands upside-down), shifts XZ so the anchor midpoint sits at origin, then raycasts down onto the arena MeshCollider from `Y=1000` to find the walkable top surface and shifts Y so that surface lands at `Y=0`. Makes anchor placement within the mesh's thickness forgiving — entities no longer sink when anchors are authored at the mesh bottom. Lane length is measured from `Vector3.Distance(virusAnchor.position, immuneAnchor.position)` each boot. If the Addressable load or anchor lookup fails, falls back to the placeholder ground + `laneLength = 80` so the scene still boots.
+  3. Champions and bases spawn directly on the anchor positions (champion gets a `+0.5` Y offset for CharacterController clearance). AI patrol points use the immune anchor as their start node instead of the hardcoded `half * 0.85f`.
+  4. `SetupCamera` in [GameBootstrap](Assets/Scripts/Pathogen/Setup/GameBootstrap.cs) now seeds the `CameraController`'s `minX/maxX/minZ/maxZ` clamp from the combined renderer bounds of the loaded arena. The old hardcoded `±50 / ±15` defaults tuned for the 80-unit placeholder snapped the follow-focus back to origin on the 500-scaled Meshy arena, parking the camera in empty space. Swapping the arena prefab or rescaling the root now re-drives the clamp automatically.
+
+[19/04/2026]:
+  1. Proposed 3D map work with AI:
+    - Generate a full map in 3D with Meshy for visualisation and prototyping.
+    - Upscale the concept art created by ChatGPT (original dimensions: 1330 × 1182):
+      - GigaPixelAI: https://gigapixelai.com/ (Purchase required)
+      - Upscayl: https://upscayl.org/ (✅ Free)
+    - x4 the concept art image so that it fills in just enough from the 1330 x 1182 low resolution image. x8 that will make AI reinvent things and also on a mobile game, too much detail is not necessary.
+    - Slice the image up and upscale each chunks individually for sharper details.
+    - Tile them up.
 [18/04/2026]:
   1. Fixed pink-rendering on Android builds (game was fully pink despite working in Editor and Unity Remote). Root cause: 20+ `Shader.Find()` calls across runtime code (Projectile, Entity/HitEffect, Champion, Structure, PlayerController, TargetHighlight, FloatingHealthBar, HumanHealthBar, SkillButton, ChampionStats, AutoAttackButton, SkillAimIndicator, GameBootstrap) returned null in builds — Unity's build analyzer can't detect string-based shader references, so the shaders were stripped and never shipped.
     - Introduced `Pathogen.ShaderLibrary` ScriptableObject singleton at [Assets/Scripts/Pathogen/Core/ShaderLibrary.cs](Assets/Scripts/Pathogen/Core/ShaderLibrary.cs) loaded from [Assets/Resources/ShaderLibrary.asset](Assets/Resources/ShaderLibrary.asset). Holds direct `Shader` references so Unity's build analyzer sees them as used assets. Access pattern: `ShaderLibrary.Instance.xyz`.
@@ -22,12 +38,4 @@
     - [Structure.cs](Assets/Scripts/Pathogen/Entities/Structure.cs) `AttachMuzzleFlash` instantiates the prefab as a child of the projectile; `isTrueDmg` just overrides `main.startSize` for the escalation read. The old `CreateProjectileHalo` and its pulse loop in [StructureProjectile.cs](Assets/Scripts/Pathogen/Combat/StructureProjectile.cs) are deleted — the ParticleSystem handles its own simulation.
     - **Artist workflow from now on:** menu → "Pathogen/Build VFX Prefabs" once to scaffold, then edit `Assets/Resources/VFX/StructureMuzzleFlash.prefab` in the Inspector like any other ParticleSystem. Shader preservation is automatic via the prefab→material→shader reference chain.
   12. Removed `Assets/TutorialInfo/` — Unity starter-project Readme sample. Its `ReadmeEditor` used `[InitializeOnLoad]` + `EditorApplication.delayCall` to auto-select the Readme asset, which ran `EditorStyles.*` outside an OnGUI context and spammed "Unable to use a named GUIStyle without a current skin" warnings whenever the hierarchy changed. No Pathogen code referenced it.
-[18/04/2026]:
-  1. Proposed 3D map work with AI:
-    - Generate a full map in 3D with Meshy for visualisation and prototyping.
-    - Upscale the concept art created by ChatGPT (original dimensions: 1330 × 1182):
-      - GigaPixelAI: https://gigapixelai.com/ (Purchase required)
-      - Upscayl: https://upscayl.org/ (✅ Free)
-    - x4 the concept art image so that it fills in just enough from the 1330 x 1182 low resolution image. x8 that will make AI reinvent things and also on a mobile game, too much detail is not necessary.
-    - Slice the image up and upscale each chunks individually for sharper details.
-    - Tile them up.
+  

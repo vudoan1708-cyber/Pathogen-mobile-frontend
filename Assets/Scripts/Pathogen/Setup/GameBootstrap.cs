@@ -1,4 +1,7 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -14,9 +17,22 @@ namespace Pathogen
     /// </summary>
     public class GameBootstrap : MonoBehaviour
     {
+        // Addressable address of the arena prefab (mesh + base anchors as children).
+        private const string ArenaAddress = "Arena/Default";
+        private const string VirusAnchorName = "VirusBaseAnchor";
+        private const string ImmuneAnchorName = "ImmuneBaseAnchor";
+        private const float FallbackLaneLength = 80f;
+
         [Header("Map Settings")]
-        public float laneLength = 80f;
         public float groundWidth = 30f;
+
+        // Measured from anchor distance after the Arena Addressable loads; falls back to
+        // FallbackLaneLength if load fails so we still boot a playable scene.
+        private float laneLength = FallbackLaneLength;
+
+        private GameObject arenaInstance;
+        private Transform virusAnchor;
+        private Transform immuneAnchor;
 
         /// <summary>
         /// Single font used by all UI text in the game. Created once here at startup.
@@ -33,6 +49,8 @@ namespace Pathogen
 
         void Awake()
         {
+            Application.targetFrameRate = 60;
+
             // Lock to landscape on mobile (no-op on desktop)
             Screen.autorotateToPortrait = false;
             Screen.autorotateToPortraitUpsideDown = false;
@@ -44,13 +62,110 @@ namespace Pathogen
 
             SetupGameManager();
             SetupLighting();
-            SetupGround();
+
+            StartCoroutine(BuildSceneAsync());
+        }
+
+        // ─── SCENE BUILD SEQUENCE ───────────────────────────────────────
+
+        private IEnumerator BuildSceneAsync()
+        {
+            yield return LoadArena();
+
             SetupStructures();
             SetupChampions();
             SetupBases();
             SetupMinionSpawners();
             SetupCamera();
             SetupUI();
+        }
+
+        // ─── ARENA ──────────────────────────────────────────────────────
+
+        private IEnumerator LoadArena()
+        {
+            // No position/rotation args — preserves the prefab's authored transform
+            // (critical: the Meshy FBX needs its -90 X rotation to land right-side-up).
+            var handle = Addressables.InstantiateAsync(ArenaAddress);
+            yield return handle;
+
+            if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
+            {
+                Debug.LogError($"[Pathogen] Failed to load Arena Addressable at '{ArenaAddress}'. Falling back to placeholder ground.");
+                SetupGround();
+                laneLength = FallbackLaneLength;
+                yield break;
+            }
+
+            arenaInstance = handle.Result;
+            arenaInstance.name = "Arena";
+
+            virusAnchor = FindChildByName(arenaInstance.transform, VirusAnchorName);
+            immuneAnchor = FindChildByName(arenaInstance.transform, ImmuneAnchorName);
+
+            if (virusAnchor == null || immuneAnchor == null)
+            {
+                Debug.LogError($"[Pathogen] Arena prefab missing '{VirusAnchorName}' or '{ImmuneAnchorName}' child. Falling back to placeholder ground.");
+                Addressables.ReleaseInstance(arenaInstance);
+                arenaInstance = null;
+                SetupGround();
+                laneLength = FallbackLaneLength;
+                yield break;
+            }
+
+            AlignArenaToLaneAxis();
+            laneLength = Vector3.Distance(virusAnchor.position, immuneAnchor.position);
+            ArenaOptimizer.Apply(arenaInstance);
+        }
+
+        private void AlignArenaToLaneAxis()
+        {
+            Vector3 virusPos = virusAnchor.position;
+            Vector3 immunePos = immuneAnchor.position;
+            Vector3 axis = immunePos - virusPos;
+            axis.y = 0f;
+            if (axis.sqrMagnitude > 0.0001f)
+            {
+                float yawDeg = Mathf.Atan2(axis.z, axis.x) * Mathf.Rad2Deg;
+                Vector3 pivot = (virusPos + immunePos) * 0.5f;
+                arenaInstance.transform.RotateAround(pivot, Vector3.up, -yawDeg);
+            }
+
+            Vector3 pVirus = virusAnchor.position;
+            Vector3 pImmune = immuneAnchor.position;
+            float midX = (pVirus.x + pImmune.x) * 0.5f;
+            float midZ = (pVirus.z + pImmune.z) * 0.5f;
+            arenaInstance.transform.position -= new Vector3(midX, 0f, midZ);
+            Physics.SyncTransforms();
+
+            float surfaceY = (RaycastSurfaceY(virusAnchor.position) +
+                              RaycastSurfaceY(immuneAnchor.position)) * 0.5f;
+            arenaInstance.transform.position -= new Vector3(0f, surfaceY, 0f);
+            Physics.SyncTransforms();
+        }
+
+        private static float RaycastSurfaceY(Vector3 xzPos)
+        {
+            const float rayHeight = 1000f;
+            Vector3 origin = new Vector3(xzPos.x, rayHeight, xzPos.z);
+            if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, rayHeight * 2f,
+                ~0, QueryTriggerInteraction.Ignore))
+            {
+                return hit.point.y;
+            }
+            Debug.LogWarning($"[Pathogen] Walkable surface raycast missed at XZ=({xzPos.x:F1}, {xzPos.z:F1}).");
+            return xzPos.y;
+        }
+
+        private static Transform FindChildByName(Transform root, string targetName)
+        {
+            if (root.name == targetName) return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var hit = FindChildByName(root.GetChild(i), targetName);
+                if (hit != null) return hit;
+            }
+            return null;
         }
 
         // ─── GAME MANAGER ───────────────────────────────────────────────
@@ -65,35 +180,15 @@ namespace Pathogen
 
         private void SetupLighting()
         {
-            // Key light — warm, from front-right, main illumination
             var keyGO = new GameObject("KeyLight");
             var keyLight = keyGO.AddComponent<Light>();
             keyLight.type = LightType.Directional;
             keyLight.color = new Color(1f, 0.95f, 0.85f);
-            keyLight.intensity = 1.2f;
+            keyLight.intensity = 1.4f;
             keyGO.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
-            // Rim light — cool, from behind, creates silhouette separation
-            var rimGO = new GameObject("RimLight");
-            var rimLight = rimGO.AddComponent<Light>();
-            rimLight.type = LightType.Directional;
-            rimLight.color = new Color(0.5f, 0.7f, 1f);
-            rimLight.intensity = 0.9f;
-            rimGO.transform.rotation = Quaternion.Euler(25f, 150f, 0f);
-            rimLight.shadows = LightShadows.None;
-
-            // Fill light — soft, from opposite key, lifts shadows
-            var fillGO = new GameObject("FillLight");
-            var fillLight = fillGO.AddComponent<Light>();
-            fillLight.type = LightType.Directional;
-            fillLight.color = new Color(0.8f, 0.85f, 1f);
-            fillLight.intensity = 0.35f;
-            fillGO.transform.rotation = Quaternion.Euler(35f, 60f, 0f);
-            fillLight.shadows = LightShadows.None;
-
-            // Lift the ambient floor so shaded sides aren't black
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.25f, 0.26f, 0.3f);
+            RenderSettings.ambientLight = new Color(0.34f, 0.35f, 0.4f);
         }
 
         // ─── GROUND ─────────────────────────────────────────────────────
@@ -136,95 +231,55 @@ namespace Pathogen
 
         // ─── STRUCTURES ─────────────────────────────────────────────────
 
-        private void SetupStructures()
-        {
-            float half = laneLength * 0.5f;
-
-            // Virus structures (Dark Sentinels)
-            CreateStructure("DarkSentinel_1", Team.Virus, new Vector3(-half * 0.4f, 0f, -3f),
-                           1500f, 80f, new Color(0.8f, 0.15f, 0.15f));
-            CreateStructure("DarkSentinel_2", Team.Virus, new Vector3(-half * 0.75f, 0f, -3f),
-                           2000f, 100f, new Color(0.6f, 0.1f, 0.1f));
-
-            // Immune structures (Sentinels)
-            CreateStructure("Sentinel_1", Team.Immune, new Vector3(half * 0.4f, 0f, -3f),
-                           1500f, 80f, new Color(0.15f, 0.4f, 0.8f));
-            CreateStructure("Sentinel_2", Team.Immune, new Vector3(half * 0.75f, 0f, -3f),
-                           2000f, 100f, new Color(0.1f, 0.3f, 0.6f));
-        }
-
-        private void CreateStructure(string name, Team team, Vector3 position,
-                                     float health, float damage, Color color)
-        {
-            var structGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            structGO.name = name;
-            structGO.transform.position = position;
-            structGO.transform.localScale = new Vector3(1.2f, 7f, 1.2f);
-            structGO.GetComponent<Renderer>().material.color = color;
-
-            // Trigger collider so minions can walk through (structures detect via range, not physics)
-            structGO.GetComponent<BoxCollider>().isTrigger = true;
-
-            var rb = structGO.AddComponent<Rigidbody>();
-            rb.isKinematic = true;
-            rb.useGravity = false;
-
-            // Solid child collider for blocking movement
-            var solidCollider = new GameObject("SolidCollider");
-            solidCollider.transform.SetParent(structGO.transform, false);
-            var solidBox = solidCollider.AddComponent<BoxCollider>();
-            solidBox.size = Vector3.one;
-
-            var structure = structGO.AddComponent<Structure>();
-            structure.team = team;
-            structure.entityName = name;
-            structure.maxHealth = health;
-            structure.currentHealth = health;
-            structure.attackDamage = damage;
-            structure.attackSpeed = 0.88f;
-            structure.armor = 40f;
-            structure.magicResist = 30f;
-
-            var hbar = structGO.AddComponent<FloatingHealthBar>();
-            hbar.heightOffset = 5.5f;
-            hbar.barWidth = 1.5f;
-
-            structGO.AddComponent<TargetHighlight>();
-        }
+        private void SetupStructures() => StructureFactory.BuildAll(laneLength);
 
         // ─── CHAMPIONS ──────────────────────────────────────────────────
 
         private void SetupChampions()
         {
             float half = laneLength * 0.5f;
+            const float championGroundOffset = 0.5f;
+
+            Vector3 playerSpawn = virusAnchor != null
+                ? new Vector3(virusAnchor.position.x, championGroundOffset, virusAnchor.position.z)
+                : new Vector3(-half * 0.85f, championGroundOffset, 0f);
+            Vector3 aiSpawn = immuneAnchor != null
+                ? new Vector3(immuneAnchor.position.x, championGroundOffset, immuneAnchor.position.z)
+                : new Vector3(half * 0.85f, championGroundOffset, 0f);
 
             // --- PLAYER ---
             var playerDef = ChampionRoster.Get("Necrova");
-            var playerPos = new Vector3(-half * 0.85f, 0.5f, 0f);
-            playerChampion = CreateChampion(playerDef, Team.Virus, playerPos);
+            playerChampion = CreateChampion(playerDef, Team.Virus, playerSpawn);
             if (GameManager.Instance != null)
                 GameManager.Instance.playerTeam = playerChampion.team;
 
+            AddChampionCharacterController(playerChampion.gameObject);
             PlayerController.Create(playerChampion.gameObject);
-
-            var cc = playerChampion.gameObject.AddComponent<CharacterController>();
-            cc.height = 1f;
-            cc.radius = 0.4f;
-            cc.center = Vector3.zero;
 
             // --- AI ---
             var aiDef = ChampionRoster.Get("Immunix");
-            var aiPos = new Vector3(half * 0.85f, 0.5f, 0f);
-            aiChampion = CreateChampion(aiDef, Team.Immune, aiPos);
+            aiChampion = CreateChampion(aiDef, Team.Immune, aiSpawn);
 
+            AddChampionCharacterController(aiChampion.gameObject);
             var aiCtrl = aiChampion.gameObject.AddComponent<AIController>();
             aiCtrl.patrolPoints = new Vector3[]
             {
-                new Vector3(half * 0.85f, 0.5f, 0f),
-                new Vector3(half * 0.5f, 0.5f, 0f),
-                new Vector3(half * 0.2f, 0.5f, 0f),
-                new Vector3(0f, 0.5f, 0f),
+                aiSpawn,
+                new Vector3(half * 0.5f, championGroundOffset, 0f),
+                new Vector3(half * 0.2f, championGroundOffset, 0f),
+                new Vector3(0f, championGroundOffset, 0f),
             };
+        }
+
+        private static void AddChampionCharacterController(GameObject champGO)
+        {
+            var cc = champGO.AddComponent<CharacterController>();
+            cc.height = 1f;
+            cc.radius = 0.4f;
+            cc.center = Vector3.zero;
+            cc.stepOffset = 0.05f;
+            cc.slopeLimit = 45f;
+            cc.skinWidth = 0.02f;
         }
 
         private Champion CreateChampion(ChampionDefinition def, Team team, Vector3 position)
@@ -285,8 +340,15 @@ namespace Pathogen
         {
             float half = laneLength * 0.5f;
 
-            CreateBase("VirusBase", Team.Virus, new Vector3(-half * 0.85f, 0f, 0f));
-            CreateBase("ImmuneBase", Team.Immune, new Vector3(half * 0.85f, 0f, 0f));
+            Vector3 virusBasePos = virusAnchor != null
+                ? new Vector3(virusAnchor.position.x, 0f, virusAnchor.position.z)
+                : new Vector3(-half * 0.85f, 0f, 0f);
+            Vector3 immuneBasePos = immuneAnchor != null
+                ? new Vector3(immuneAnchor.position.x, 0f, immuneAnchor.position.z)
+                : new Vector3(half * 0.85f, 0f, 0f);
+
+            CreateBase("VirusBase", Team.Virus, virusBasePos);
+            CreateBase("ImmuneBase", Team.Immune, immuneBasePos);
         }
 
         private void CreateBase(string name, Team team, Vector3 position)
@@ -360,6 +422,28 @@ namespace Pathogen
             var camCtrl = camGO.AddComponent<CameraController>();
             camCtrl.target = playerChampion.transform;
             camCtrl.mapFlipped = playerChampion.transform.position.x > 0f;
+
+            ApplyArenaCameraBounds(camCtrl);
+        }
+
+        // Derive follow-focus clamp from the loaded arena's renderer bounds so the
+        // camera can track the player across the entire map regardless of prefab scale.
+        // Falls back to CameraController defaults when arena isn't loaded.
+        private void ApplyArenaCameraBounds(CameraController camCtrl)
+        {
+            if (arenaInstance == null) return;
+
+            var renderers = arenaInstance.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            camCtrl.minX = bounds.min.x;
+            camCtrl.maxX = bounds.max.x;
+            camCtrl.minZ = bounds.min.z;
+            camCtrl.maxZ = bounds.max.z;
         }
 
         // ─── UI ─────────────────────────────────────────────────────────
@@ -433,7 +517,7 @@ namespace Pathogen
                 + AutoAttackButton.ButtonGap + 120f;
             float[] arcAngles = { 180f, 150f, 120f, 90f };
 
-            float skillSize = IsMobile ? 126f : 84f;
+            float skillSize = IsMobile ? 131f : 89f;
             float upgSize = IsMobile ? 80f : 60f;
             var woodenMat = new Material(ShaderLibrary.Instance.uiGoldButton);
 

@@ -432,7 +432,13 @@ namespace Pathogen
             if (champion.isRecalling) champion.CancelRecall();
 
             direction = ChampionSteerAroundObstacles(direction);
-            transform.position += direction * champion.moveSpeed * Time.deltaTime;
+            Vector3 delta = direction * champion.moveSpeed * Time.deltaTime;
+
+            if (characterController != null && characterController.enabled)
+                characterController.Move(delta);
+            else
+                transform.position += delta;
+
             FaceTarget(transform.position + direction);
         }
 

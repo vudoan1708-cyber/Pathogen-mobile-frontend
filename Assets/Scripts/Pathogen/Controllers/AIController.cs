@@ -34,9 +34,12 @@ namespace Pathogen
         private float kiteTimer;
         private const float KiteDuration = 1.5f;
 
+        private CharacterController characterController;
+
         void Start()
         {
             champion = GetComponent<Champion>();
+            characterController = GetComponent<CharacterController>();
 
             champion.OnSkillPointsChanged += _ => AutoAllocateSkillPoints();
             champion.OnRecallCompleted += OnRecallCompleted;
@@ -381,7 +384,12 @@ namespace Pathogen
             if (champion.isRecalling) champion.CancelRecall();
 
             dir = ChampionSteerAroundObstacles(dir);
-            transform.position += dir * champion.moveSpeed * Time.deltaTime;
+            Vector3 delta = dir * champion.moveSpeed * Time.deltaTime;
+
+            if (characterController != null && characterController.enabled)
+                characterController.Move(delta);
+            else
+                transform.position += delta;
         }
 
         private Vector3 ChampionSteerAroundObstacles(Vector3 desiredDir)

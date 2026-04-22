@@ -8,7 +8,7 @@ namespace Pathogen
     {
         public string championName;
         public Color color;
-        public float championHeight = 1f;
+        public float championHeight = 0.75f;
 
         // Addressables key for the champion's visual model (FBX or wrapped prefab).
         // Loaded asynchronously at spawn. Leave empty to keep the primitive placeholder.

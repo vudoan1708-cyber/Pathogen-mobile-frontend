@@ -83,6 +83,8 @@ namespace Pathogen
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position);
         }
 
+        private const float FollowSmoothSpeed = 25f;
+
         private void UpdateFollowCamera()
         {
             if (joystick != null && joystick.IsRightTouchActive)
@@ -90,15 +92,17 @@ namespace Pathogen
                 Vector2 delta = joystick.RightTouchDelta;
                 float flip = mapFlipped ? -1f : 1f;
                 focusPoint += new Vector3(delta.x * flip, 0f, delta.y * flip);
+                return;
             }
-            else if (joystick != null && joystick.RightTouchReleased)
+
+            if (joystick != null && joystick.RightTouchReleased)
             {
                 focusPoint = target.position;
+                return;
             }
-            else
-            {
-                focusPoint = target.position;
-            }
+
+            focusPoint = Vector3.Lerp(focusPoint, target.position,
+                FollowSmoothSpeed * Time.unscaledDeltaTime);
         }
 
         private void UpdateDesktopCamera()

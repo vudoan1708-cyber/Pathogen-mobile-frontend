@@ -14,10 +14,10 @@ namespace Pathogen
         public GameObject activeRing;
         public GameObject content;
 
-        public const float MarginRight = 80f;
+        public const float MarginRight = 85f;
         public const float MarginBottom = 30f;
-        public const float BigButtonSize = 180f;
-        public const float SmallButtonSize = 147f;
+        public const float BigButtonSize = 185f;
+        public const float SmallButtonSize = 152f;
         public const float ButtonGap = 27f;
         public const float ActiveRingPadding = 12f;
         public const float MaxDragPixels = 150f;

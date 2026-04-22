@@ -14,8 +14,8 @@ A 5v5 mobile 3D MOBA set inside a human body. The Virus team invades and drains 
 4. [Lanes & Roles](#4-lanes--roles)
 5. [Structures — Dark Sentinels & Sentinels](#5-structures--dark-sentinels--sentinels)
 6. [Supply Lines](#6-supply-lines)
-7. [Organs — 8 Immune-Side Objectives](#7-organs--8-immune-side-objectives)
-8. [Hives — 7 Virus-Side Objectives](#8-hives--7-virus-side-objectives)
+7. [Organs — 6 Immune-Side Objectives](#7-organs--6-immune-side-objectives)
+8. [Hives — 6 Virus-Side Objectives](#8-hives--6-virus-side-objectives)
 9. [Organ & Hive Defenders](#9-organ--hive-defenders)
 10. [Defender Conversion Mechanic](#10-defender-conversion-mechanic)
 11. [Slayer Mechanic — Deteriorating & Festering Phases](#11-slayer-mechanic--deteriorating--festering-phases)
@@ -73,7 +73,7 @@ The Human Health Bar starts at 50%.
 
 **Axis:** Outside-to-inside. Virus base left (skin surface). Immune core right (body interior). Virus pushes right. Immune pushes left.
 
-**Content asymmetry:** Virus jungle (left) = 7 Hives + Infection Site. Immune jungle (right) = 8 organs + Heart.
+**Content asymmetry:** Virus jungle (left) = 6 Hives + Infection Site. Immune jungle (right) = 6 organs + Heart.
 
 **Jungle zones:** Upper jungle between Cortex and Pulmonary lanes. Lower jungle between Pulmonary and Visceral lanes.
 
@@ -81,9 +81,9 @@ The Human Health Bar starts at 50%.
 
 **Hypothalamus:** Spawns in the upper jungle near map center. Opposite side from main objectives, forcing teams to split attention.
 
-**High-value objective placement:** Highest-value organs and Hives sit in off-lane alcoves just behind the inner (2nd tier) structure on their nearest lane, angled slightly toward the top or bottom edge of the map. Brain (15%) in an alcove above S2 on Cortex. Replication Hive (10%) in an alcove above D2 on Cortex. Lungs (10%) near S2 Pulmonary. Mutation Hive (8%) near D2 Pulmonary. Liver (8%) near S2 Visceral. Dormancy Hive (8%) near D2 Visceral.
+**High-value objective placement (3 per side, near inner structures):** Brain (15%) in an alcove just behind S2 on Cortex, opening northward off-lane. Replication Hive (15%) mirrors Brain behind D2 on Cortex. Lungs (10%) near S2 Pulmonary. Dormancy Hive (10%) near D2 Pulmonary. Bone Marrow (9%) near S2 Visceral. Mutation Hive (9%) near D2 Visceral.
 
-**Mid and low-value objectives:** Distributed through jungle between lanes.
+**Mid-value objectives (3 per side, in jungle):** Liver (8%) and Kidneys (7%) in immune jungle at moderate depth. Spleen (6%) near center line — most accessible organ. Toxin Hive (8%) and Carrier Hive (7%) in virus jungle at moderate depth. Resistance Hive (6%) near center line — most accessible Hive.
 
 ---
 
@@ -125,40 +125,37 @@ Structures feed biological connections to nearby defenders.
 
 ---
 
-## 7. Organs — 8 Immune-Side Objectives
+## 7. Organs — 6 Immune-Side Objectives
 
 Organs sit in the immune jungle. Virus team's attack targets. Dormant until their phase — defenders patrol even while dormant.
 
 | Organ | Health Shift | Deteriorating Window | Team Effect (virus captures) |
 |-------|-------------|---------------------|------------------------------|
-| Intestines | 5% | 1:30 | +5% healing received |
-| Thymus | 6% | 1:45 | +5% ability damage |
 | Spleen | 6% | 1:45 | +8% attack speed |
 | Kidneys | 7% | 2:00 | +5% cooldown reduction |
 | Liver | 8% | 2:15 | +5% damage reduction |
-| Bone Marrow | 8% | 2:15 | +8% max HP |
+| Bone Marrow | 9% | 2:15 | +8% max HP |
 | Lungs | 10% | 2:30 | +15 flat AD, +15 flat AP |
 | Brain | 15% | 3:00 | +10% all damage |
 
-**Total virus health shift from organs:** 65%.
+**Total virus health shift from organs:** 55%.
 
 ---
 
-## 8. Hives — 7 Virus-Side Objectives
+## 8. Hives — 6 Virus-Side Objectives
 
 Hives sit in the virus jungle. Immune team's attack targets. No passive buffs — Hives grant nothing at game start.
 
 | Hive | Health Shift | Festering Window | Team Effect (immune captures) |
 |------|-------------|-----------------|-------------------------------|
-| Catalyst Hive | 5% | 1:30 | +3 mana regen/sec |
 | Resistance Hive | 6% | 1:45 | +10% tenacity (CC reduction) |
-| Carrier Hive | 6% | 1:45 | +8 armor pen, +8 magic pen |
-| Toxin Hive | 7% | 2:00 | +3 HP regen/sec |
-| Mutation Hive | 8% | 2:15 | +15% structure damage |
-| Dormancy Hive | 8% | 2:15 | +200 shield every 30s |
-| Replication Hive | 10% | 2:45 | +5% crit chance |
+| Carrier Hive | 7% | 2:00 | +8 armor pen, +8 magic pen |
+| Toxin Hive | 8% | 2:15 | +3 HP regen/sec |
+| Mutation Hive | 9% | 2:15 | +15% structure damage |
+| Dormancy Hive | 10% | 2:30 | +200 shield every 30s |
+| Replication Hive | 15% | 3:00 | +5% crit chance |
 
-**Total immune health shift from Hives:** 50%.
+**Total immune health shift from Hives:** 55%. Both sides have identical total value (55%) with identical spread: one 6%, one 7%, one 8%, one 9%, one 10%, one 15%.
 
 ---
 
@@ -176,12 +173,10 @@ Every organ and Hive has a neutral defender. **Cannot be killed — only convert
 |-------|---------|-------|
 | Brain (15%) | Microglial Guardian | Tanky, high damage |
 | Lungs (10%) | Alveolar Warden | Balanced, space control |
+| Bone Marrow (9%) | Osteoclast Titan | Massive HP, slow |
 | Liver (8%) | Kupffer Brute | Slow, heavy-hitting |
-| Bone Marrow (8%) | Osteoclast Titan | Massive HP, slow |
 | Kidneys (7%) | Mesangial Crusher | Mid-range, methodical |
 | Spleen (6%) | Splenic Ravager | Fast, aggressive |
-| Thymus (6%) | Thymic Instructor | Balanced |
-| Intestines (5%) | Gut Flora Golem | Moderate, bacterial |
 
 Hive defenders follow identical rules with virus-themed designs.
 
@@ -281,10 +276,10 @@ Timer-based.
 | Phase | Time | Objectives |
 |-------|------|-----------|
 | 0 | 0:00–3:00 | None. Farming + missions. |
-| 1 | 3:00–7:00 | Intestines (5%), Thymus (6%) |
-| 2 | 7:00–11:00 | Spleen (6%), Kidneys (7%) |
-| 3 | 11:00–15:00 | Bone Marrow (8%), Lungs (10%), Hypothalamus (8%) |
-| 4 | 15:00–20:00 | Liver (8%), Brain (15%) |
+| 1 | 3:00–7:00 | Spleen (6%), Kidneys (7%) |
+| 2 | 7:00–11:00 | Liver (8%), Bone Marrow (9%) |
+| 3 | 11:00–15:00 | Lungs (10%), Hypothalamus (8%) |
+| 4 | 15:00–20:00 | Brain (15%) |
 | 5 | 20:00+ | Endgame. Main objective focus. |
 
 Hives targetable from minute 1 but defenders are strong early.
@@ -537,11 +532,11 @@ Switch branches: 2,000 Bio (+3,600 if Apex = 5,600 total).
 
 **Phase 0:** Farm. Compete for missions. Roamer contests camps for +5% jungle MS.
 
-**Phase 1–2:** Contest early organs. Push Sentinels (5% each + supply line severance). Defend Hives.
+**Phase 1–2:** Contest early organs (Spleen, Kidneys, Liver, Bone Marrow). Push Sentinels (5% each + supply line severance). Defend Hives.
 
 **Phase 3:** Hypothalamus (8% + ult CDR). Target Lungs (10%). Protect Hives.
 
-**Phase 4:** Brain (15%). Assess Heart viability by Sentinel count.
+**Phase 4:** Brain (15%) — the single highest-value objective. Assess Heart viability by Sentinel count.
 
 **Phase 5:** Heart Surge or grind to 0%. ACE during Surge = win.
 
@@ -549,11 +544,11 @@ Switch branches: 2,000 Bio (+3,600 if Apex = 5,600 total).
 
 **Phase 0:** Win Cortex mission for full ward advantage. Roamer secures camps.
 
-**Phase 1–2:** Defend organs (hunt slayers). Push Dark Sentinels. Begin Hive invasion.
+**Phase 1–2:** Defend organs (hunt slayers). Push Dark Sentinels. Begin Hive invasion — Resistance (6%) and Toxin (8%) near center are early targets.
 
-**Phase 3:** Hypothalamus. Hive captures. Defend Lungs.
+**Phase 3:** Hypothalamus. Target Dormancy Hive (10%). Defend Lungs.
 
-**Phase 4:** Defend Brain. Assess Infection Site by Dark Sentinel count.
+**Phase 4:** Defend Brain. Target Replication Hive (15%) — the immune team's highest-value objective. Assess Infection Site by Dark Sentinel count.
 
 **Phase 5:** Infection Site Surge or grind to 100%. ACE during Surge = win.
 
