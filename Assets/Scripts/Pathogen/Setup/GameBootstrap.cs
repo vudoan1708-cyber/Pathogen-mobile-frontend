@@ -278,7 +278,7 @@ namespace Pathogen
             cc.radius = 0.4f;
             cc.center = Vector3.zero;
             cc.stepOffset = 0.05f;
-            cc.slopeLimit = 45f;
+            cc.slopeLimit = 25f;
             cc.skinWidth = 0.02f;
         }
 

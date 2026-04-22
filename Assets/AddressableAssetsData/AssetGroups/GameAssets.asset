@@ -15,7 +15,7 @@ MonoBehaviour:
   m_GroupName: GameAssets
   m_GUID: d1d0ddf7e43d3497fb39d92dd32875dd
   m_SerializeEntries:
-  - m_GUID: 98f707a2fd47444aaaa0158ef67b566c
+  - m_GUID: 29291df9e54944d5995747bbee483f64
     m_Address: Arena/Default
     m_ReadOnly: 0
     m_SerializedLabels: []

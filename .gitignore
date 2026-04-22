@@ -66,6 +66,8 @@ crashlytics-build.properties
 /Assets/_Recovery/
 /Assets/_Recovery.meta
 
+*(Legacy).prefab*
+
 # Addressables local build state
 /ProjectSettings/ScriptableBuildPipeline.json
 .DS_Store*

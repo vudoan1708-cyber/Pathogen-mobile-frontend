@@ -461,7 +461,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e7a02c6d0f24411e805cf7ae0fa9c6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Pathogen.GameBootstrap
-  laneLength: 80
   groundWidth: 30
 --- !u!4 &913512988
 Transform:

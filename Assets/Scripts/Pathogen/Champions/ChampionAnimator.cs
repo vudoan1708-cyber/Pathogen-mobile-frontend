@@ -101,7 +101,15 @@ namespace Pathogen
 
         private void HandleAutoAttack() => animator.SetTrigger(AttackHash);
         private void HandleDeath(Entity _) => animator.SetTrigger(DieHash);
-        private void HandleRespawn() => animator.SetTrigger(RespawnHash);
+
+        private void HandleRespawn()
+        {
+            animator.SetTrigger(RespawnHash);
+            previousPosition = champion.transform.position;
+            animator.SetFloat(SpeedHash, 0f);
+            animator.SetFloat(LocomotionMultiplierHash, 1f);
+        }
+
         private void HandleRecall() => animator.SetTrigger(RecallHash);
     }
 }

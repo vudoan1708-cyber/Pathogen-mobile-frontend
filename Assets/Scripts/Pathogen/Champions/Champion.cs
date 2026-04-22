@@ -477,11 +477,26 @@ namespace Pathogen
             isRecalling = false;
             recallTimer = 0f;
 
-            transform.position = spawnPoint;
+            TeleportTo(spawnPoint);
             currentTarget = null;
             isDashing = false;
 
             OnRecallCompleted?.Invoke();
+        }
+
+        private void TeleportTo(Vector3 worldPos)
+        {
+            var cc = GetComponent<CharacterController>();
+            if (cc != null && cc.enabled)
+            {
+                cc.enabled = false;
+                transform.position = worldPos;
+                cc.enabled = true;
+            }
+            else
+            {
+                transform.position = worldPos;
+            }
         }
 
         // ─── ECONOMY ────────────────────────────────────────────────────
@@ -567,8 +582,7 @@ namespace Pathogen
             currentHealth = maxHealth;
             currentMana = maxMana;
 
-            // Reset position to base
-            transform.position = spawnPoint;
+            TeleportTo(spawnPoint);
             transform.rotation = Quaternion.identity;
 
             // Clear movement/combat state so champion starts idle
